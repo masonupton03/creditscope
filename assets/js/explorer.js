@@ -4,7 +4,12 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const E = CS.esc;
-  const ROOT = 'explorer/sample/';                 // data root: the simulated sample set (real data is not connected)
+  // Data root: the simulated sample set, unless the PERSONAL edition is running (localhost only) and offers private data.
+  // The public site never probes for private data; the service worker never caches it.
+  const IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)
+    && !!document.querySelector('meta[name="creditscope-personal"]');         // only the personal server adds this marker
+  let ROOT = 'explorer/sample/';
+  let personal = false;
   const BENCH = 'SPY';
   const PERIODS = Finance.PERIODS;
   const state = { sym: null, period: '1Y', compare: true, mode: 'growth' };
@@ -16,11 +21,15 @@
   /* ---------- data ---------- */
   async function getJSON(url) {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(url + ' returned HTTP ' + res.status);
+    if (!res.ok) { await res.text().catch(() => ''); throw new Error(url + ' returned HTTP ' + res.status); }   // drain the body so the request can complete
     return res.json();
   }
   function loadSeries(sym) {
-    if (!cache.has(sym)) cache.set(sym, getJSON(ROOT + 'series/' + encodeURIComponent(sym) + '.json').catch(e => { cache.delete(sym); throw e; }));
+    if (!cache.has(sym)) {
+      // personal edition: the local server returns a fresh cached copy, fetches an unsynced symbol on demand, or serves a stale copy
+      const url = personal ? 'api/series/' + encodeURIComponent(sym) : ROOT + 'series/' + encodeURIComponent(sym) + '.json';
+      cache.set(sym, getJSON(url).catch(e => { cache.delete(sym); throw e; }));
+    }
     return cache.get(sym);
   }
   const entry = sym => index.find(e => e.s === sym);
@@ -179,12 +188,15 @@
     warnings.forEach(w => { if (seen.has(w)) return; seen.add(w);
       if (w === 'TRUNCATED') notes.push('<div class="banner warn"><span>This history is shorter than ' + state.period + ': showing from <b>' + CS.date(sum.startDate) + '</b>, the first available close.</span></div>');
       else notes.push('<div class="banner warn"><span>' + WARN[w] + '</span></div>'); });
+    if (personal && ser.feed === 'iex') notes.push('<div class="banner warn"><span><b>IEX feed.</b> Closes come from IEX trades and the volume shown is <b>IEX-only</b>, a small share of total market volume, so volume (and dollar volume) is understated and a close can differ slightly from the consolidated close.</span></div>');
     if (sum.basis === 'total') notes.push('<div class="banner"><span>Returns include <b>reinvested dividends</b> (total return). The dashed line in the chart shows the price-only result for comparison.</span></div>');
     const hasCompare = !isBench;
     box.innerHTML =
       '<div class="card">' +
       '<div class="ex-head"><h2><span class="tk">' + E(sym) + '</span><span class="nm">' + E(ser.name || e.n || '') + '</span></h2>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="chip">' + E(ser.type || (e.t === 'E' ? 'ETF' : 'Stock')) + '</span><span class="chip">' + E(ser.exchange || e.x || '') + '</span>' + (ser.synthetic ? '<span class="chip" title="Generated, not real market prices">simulated</span>' : '') +
+      (personal ? '<span class="chip" title="Real data for your private use only">private</span>' : '') +
+      (personal && ser.feed === 'iex' ? '<span class="chip" title="IEX feed: prices from IEX trades, volume is IEX-only">IEX feed</span>' : '') +
       '<button class="btn small ex-star" id="star" type="button" aria-pressed="false"></button></div></div>' +
       '<div class="ex-controls"><div class="seg" role="group" aria-label="Period">' + PERIODS.map(p => '<button type="button" data-p="' + p + '" aria-pressed="' + (p === state.period) + '">' + p + '</button>').join('') + '</div>' +
       (hasCompare ? '<label class="check"><input type="checkbox" id="cmp"' + (state.compare ? ' checked' : '') + '> Compare with ' + BENCH + '</label>' : '') +
@@ -221,14 +233,24 @@
   /* ---------- start ---------- */
   async function start() {
     try {
-      const data = await getJSON(ROOT + 'index.json');
+      let data = null;
+      if (IS_LOCAL) {
+        try { const priv = await getJSON('private-data/index.json'); if (priv && priv.meta && priv.meta.private) { data = priv; ROOT = 'private-data/'; personal = true; } }
+        catch (e) { /* no private data here: use the simulated sample */ }
+      }
+      if (!data) data = await getJSON(ROOT + 'index.json');
       index = data.entries; meta = data.meta; searchIdx = ExplorerSearch.buildIndex(index);
     } catch (err) {
       CS.banner('dataBanner', 'error', '<span><b>Could not load the security list.</b> ' + E(err.message) + ' If you are offline and have not opened this page before, there is no saved copy yet.</span>');
       CS.doneLoading(); return;
     }
     if (meta.synthetic) $('synthBanner').hidden = false;
-    $('heroLead').textContent = 'Search ' + index.length + ' securities by ticker or company name, chart the history, compare against SPY, and see return, volatility, drawdown and volume, always labelled as price return or total return.';
+    if (personal) {
+      $('privateBanner').hidden = false;
+      $('privateBanner').querySelector('span').innerHTML = '<b>Personal edition: real market data for your private use.</b> Served to this computer only from your own account' + (meta.feed ? ' (' + E(String(meta.feed).toUpperCase()) + ' feed)' : '') + ', data through ' + E(CS.date(meta.asOf)) + '. Do not publish, screenshot or screen-share it: provider terms treat that as public display.';
+      document.querySelector('.kicker').textContent = 'Stock Explorer · personal edition';
+    }
+    $('heroLead').textContent = 'Search ' + CS.int(index.length) + ' securities by ticker or company name, chart the history, compare against SPY, and see return, volatility, drawdown and volume, always labelled as price return or total return.';
     watchlist = ExplorerSearch.watch.load(storage);
     parseHash(); bindSearch(); bindWatch();
     window.addEventListener('cs-theme', () => { if (state.sym) render(); });

@@ -1,6 +1,8 @@
 /* Stock Explorer styles (loaded only by explorer.html; builds on the shared design system in site.css) */
 .synth { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: var(--accent-soft); }
 .synth b { color: var(--accent); }
+.banner.private { border-color: color-mix(in srgb, var(--down) 55%, var(--border)); background: var(--down-soft); }
+.banner.private b { color: var(--down); }
 
 /* search */
 .ex-search { position: relative; }

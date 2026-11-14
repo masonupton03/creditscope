@@ -4,7 +4,7 @@
  *  - Data files (data/history.csv, data/status.json): network first, so an online visit always gets
  *    the latest data; when offline the last copy that was loaded is served, marked X-CS-Cache: 1.
  */
-const VERSION = 'creditscope-v3';
+const VERSION = 'creditscope-v4';
 const SHELL = [
   './', 'index.html', 'browse.html', 'trends.html', 'explorer.html', 'manifest.webmanifest',
   'assets/css/site.css', 'assets/css/explorer.css',
@@ -71,6 +71,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   const path = url.pathname.slice(new URL(self.registration.scope).pathname.length);
+  if (path.startsWith('private-data/') || path.startsWith('api/')) return;      // private personal-edition data is never cached
   if (DATA.includes(path)) { event.respondWith(networkFirstData(request)); return; }
   event.respondWith(staleWhileRevalidate(request));
 });
