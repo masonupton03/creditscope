@@ -92,6 +92,22 @@ def test_pages_load_both_data_files_and_calculate_in_the_browser():
         assert "CS.load()" in js and "fetch(" not in js              # all data goes through the one loader
 
 
+def approx_equal(a, b, path="expected"):
+    """Deep comparison where floats may differ in the last digits (Python 3.12 sums floats more precisely)."""
+    if isinstance(b, dict):
+        assert isinstance(a, dict) and a.keys() == b.keys(), path
+        for k in b:
+            approx_equal(a[k], b[k], f"{path}.{k}")
+    elif isinstance(b, list):
+        assert isinstance(a, list) and len(a) == len(b), path
+        for i, (x, y) in enumerate(zip(a, b)):
+            approx_equal(x, y, f"{path}[{i}]")
+    elif isinstance(b, float) or isinstance(a, float):
+        assert a == pytest.approx(b, rel=1e-12, abs=1e-12), path
+    else:
+        assert a == b, path
+
+
 def test_fixtures_are_current():
     """tests/fixtures/sample is regenerated from the real pipeline + the Python reference."""
     sys.path.insert(0, str(ROOT / "tests"))
@@ -99,8 +115,10 @@ def test_fixtures_are_current():
     import make_fixtures
     with tempfile.TemporaryDirectory() as tmp:
         make_fixtures.build(Path(tmp))
-        for name in ("history.csv", "status.json", "expected.json"):
+        for name in ("history.csv", "status.json"):          # pipeline output is exactly reproducible
             assert (Path(tmp) / name).read_bytes() == (ROOT / "tests/fixtures/sample" / name).read_bytes(), name
+        approx_equal(json.loads((Path(tmp) / "expected.json").read_text()),
+                     json.loads((ROOT / "tests/fixtures/sample/expected.json").read_text()))
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
