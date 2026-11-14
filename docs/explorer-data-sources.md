@@ -64,3 +64,55 @@ No free provider with a verified right to display historical prices on a public 
   `scripts/make_explorer_sample.py`), clearly labelled on the page, so every feature can be used and demonstrated without
   any data licence.
 * Connecting real data requires a decision on licensing (see the open decisions in the project discussion).
+
+---
+
+# Second pass: public-display rights by provider (2026-11-14)
+
+Question: which provider lets a **free public GitHub Pages site** show real prices, and what exactly is permitted:
+displaying **quotes**, displaying **charts**, or **redistributing historical datasets**. Quotes below are short and
+literal, taken from the primary terms (or pages that state the terms). "Not stated" means the page I read is silent.
+This is research, not legal advice.
+
+## Result in one table
+
+| Provider | Free-tier use | Public display / redistribution | Path to permission | Verdict |
+|---|---|---|---|---|
+| **Alpaca** (free "Basic" data) | Personal, non-commercial | T&C: content may not be "publicly displayed ... (including "mirroring")" without "express prior written consent". Separately: to make content available to others "through your own application (a 'User Application')" give Alpaca "30 days advance written notice". Support FAQ (Nov 2022): "you cannot redistribute Alpaca API data." | **Written consent / 30-day notice**: the only provider whose terms describe a route for third-party apps | Best candidate to ask |
+| **Alpha Vantage** | "private and individual in nature" (§2a) | Commercial if you "provide information ... that allows individuals or entities other than User to access information" (§2a-iii); contact premium@alphavantage.co | Commercial agreement. FAQ line "unlimited API requests for verified open-source or educational projects" concerns request limits; it grants no display rights | Not for public display |
+| **Finnhub** | "strictly for personal use" | "not redistribute or share access to data or derived results from the data" | Business approval | No (even derived results) |
+| **EODHD** | Free = "Sandbox Free Package", personal | "Displaying the data to anyone else, for example on a public website, ... is not permitted." A "chart, screenshot or report containing the data is still a way of displaying or distributing it." Allowed privately: "store, manipulate, and analyze the data for private, non-commercial purposes" | Commercial licence via sales; price not published on the pages read. Student discount 50% for 12 months, no display rights | No for public; fine for private |
+| **Twelve Data** | Free tier: "Use Free Tier data for commercial purposes" is a listed restriction | §2.2(e): "Redistribute or provide external display of Data only if and as expressly authorized by a Redistribution Rights Add-On or separate written agreement". External display data access listed first under Venture ($149/mo) | Non-profit/academic programme: "free access to one of our standard plans" for "Registered as a non-profit or academic institution"; "permanent, visible reference to Twelve Data" required; display rights not stated beyond Venture | Possible only for an eligible institution |
+| **Massive (Polygon)** | Individual plans: "solely for your own personal, non-business and non-commercial use" | Individuals: "does not permit you to share Information with anyone else, develop or provide a service or application to other users". Businesses terms grant display within the customer's own sites | Business plan: "Stocks Business ... $2,499/month" | No |
+| **Financial Modeling Prep** | Personal, non-commercial (per FMP's own articles) | Per FMP guidance (secondary reading): prior written approval is required to publish or publicly display; Enterprise plan is for display and redistribution | Written approval | **Primary terms not read**: FMP's site returned HTTP 403 to automated fetching and I did not circumvent that block. Open the terms in a browser to confirm |
+| **Marketstack** | Free: "Non-Commercial Use", 100 requests/month, 1 year history | Not stated on pages read | Paid tiers list "Commercial Use" | No |
+| **Tiingo** | Free: "internal consumption only" | Display to others needs a redistribution licence | Sales | No |
+| **IEX Exchange** | n/a | Historical PCAP "not currently available for direct download"; no end-of-day bars | n/a | No |
+| **Stooq** | n/a | Terms pages returned empty bodies; the CSV endpoints sit behind a JavaScript proof-of-work challenge | n/a | Unverifiable, not usable |
+| **Nasdaq (current source)** | n/a | Content "may not be ... displayed ... distributed ... without the prior written consent of Nasdaq" (nasdaqtrader.com copyright page) | Written consent | No for public redistribution |
+| **TradingView widgets** | Free embeddable widgets | Widget docs: "a free and powerful chart for you to easily embed in any website"; attribution must remain ("without a proper attribution of TradingView, is not allowed"). Policies §3: licence "strictly limited to personal or internal business purposes", "we do not permit commercial usage"; "explicitly prohibits any form of non-display usage". Docs: "We don't have an API that gives access to data." US data is delayed | Contact form to change branding; commercial question unresolved | Charts can be shown; **no analytics from the data are possible or permitted**; ask TradingView to confirm a non-commercial portfolio site |
+
+Distinctions that came out of the terms:
+
+* **Quotes vs charts:** no provider separates them cleanly. EODHD treats a published chart or a screenshot as display;
+  TradingView is the only one that licenses displaying charts, and only inside its own iframe.
+* **Redistributing historical datasets** is the most restricted everywhere (Alpaca "mirroring", Finnhub "derived results",
+  Massive "data feed, file", EODHD "in its original or repackaged form").
+* **Screenshots and screen-sharing of real data count as display** under EODHD's wording and are risky under the others.
+  Use simulated data for screenshots, GIFs and any recording.
+
+## Sources with explicit permission to reuse
+
+| Source | What the primary text says | Usable for |
+|---|---|---|
+| **SEC EDGAR** (sec.gov privacy page, "Website Dissemination") | "Information presented on sec.gov is considered public information and may be copied or further distributed by users of the web site without the SEC's permission." and "Please consider appropriate citation to the SEC as the source." Programmatic access: declare a User-Agent with contact details; "10 requests/second"; no crawling with "botnets or automated tools". The statement names sec.gov, not data.sec.gov. | A real, redistributable company directory and company fundamentals (XBRL "company facts"). **No price history.** |
+| **US Treasury** | Interest-rate pages carry no reuse statement ("not stated"). US government works are generally public domain (background knowledge, not stated on the page). | Risk-free rate and yield curve |
+| **FRED** | "Public Domain: Citation requested" series "may be used without permission" (DGS2, DGS10, DGS30 seen under that label; DGS3MO and TB3MS not confirmed). Copyrighted series (for example S&P 500: "reproduction ... prohibited without ... prior written permission") are restricted. Terms also forbid "Store, cache, or archive any portion of the FRED Services or Content". | Rates only, and not as a cached copy |
+| **Kenneth French library** | Terms not stated on the page read | Not relied on |
+
+## What could not be verified
+
+FMP primary terms (blocked), Stooq terms (empty pages), TradingView symbol search inside the Advanced Chart widget (option
+list is client-rendered, not in the text read), EODHD commercial pricing, Alpaca's current terms (the linked PDF carries a
+2021 creation date), Alpha Vantage free-tier history depth and adjusted-price availability, and Twelve Data free-tier
+dividends and `adjust` access.
