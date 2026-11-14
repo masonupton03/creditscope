@@ -3,3 +3,17 @@ __pycache__/
 .venv/
 .pytest_cache/
 .DS_Store
+
+# --- Personal edition: credentials and private market data must never be committed or published ---
+.env
+.env.*
+*.env
+private/
+private-data/
+personal-data/
+.creditscope/
+credentials.json
+credentials*.json
+*.pem
+*.key
+secrets/
