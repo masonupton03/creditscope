@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-PAGES = ["index.html", "browse.html", "trends.html"]
+PAGES = ["index.html", "browse.html", "trends.html", "explorer.html"]
 
 
 def read(name):
@@ -43,7 +43,7 @@ def test_pages_share_fonts_colors_and_head():
 
 
 def test_every_local_reference_exists():
-    files = PAGES + ["assets/css/site.css"]
+    files = PAGES + ["assets/css/site.css", "assets/css/explorer.css"]
     for name in files:
         text = read(name)
         refs = re.findall(r'(?:href|src)="([^"#?]+)"', text) + re.findall(r"url\(['\"]?([^)'\"]+)", text)
@@ -82,6 +82,15 @@ def test_service_worker_precaches_real_files_and_handles_data_offline():
     assert "data/history.csv" in sw and "data/status.json" in sw
     assert "networkFirstData" in sw and "X-CS-Cache" in sw
     assert "serviceWorker" in read("assets/js/common.js")
+
+
+def test_explorer_page_is_honest_about_simulated_data_and_return_types():
+    html = read("explorer.html")
+    assert 'id="synthBanner"' in html and "not real market prices" in html
+    for needed in ("price return", "total return", "split-adjusted", "not adjusted for dividends"):
+        assert needed in html.lower(), needed
+    js = read("assets/js/explorer.js")
+    assert "Finance.summarize" in js and "ExplorerSearch" in js and "basisLabel" in js
 
 
 def test_pages_load_both_data_files_and_calculate_in_the_browser():
