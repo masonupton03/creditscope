@@ -25,8 +25,9 @@
   CS.money = v => (v == null ? '—' : '$' + f2.format(v));
   CS.num = (v, d) => (v == null ? '—' : nf(d, d).format(v));
   CS.int = v => (v == null ? '—' : f0.format(Math.round(v)));
-  CS.pct = (v, d) => (v == null ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + nf(d == null ? 2 : d, d == null ? 2 : d).format(Math.abs(v)) + '%');
-  CS.signed = v => (v == null ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + f2.format(Math.abs(v)));
+  const rnd = (v, d) => Math.round(Math.abs(v) * Math.pow(10, d)) / Math.pow(10, d);   // sign follows the rounded value
+  CS.pct = (v, d) => { if (v == null) return '—'; d = d == null ? 2 : d; const r = rnd(v, d); return (r === 0 ? '' : v > 0 ? '+' : '−') + nf(d, d).format(r) + '%'; };
+  CS.signed = v => { if (v == null) return '—'; const r = rnd(v, 2); return (r === 0 ? '' : v > 0 ? '+' : '−') + f2.format(r); };
   CS.compact = v => {
     if (v == null) return '—';
     const a = Math.abs(v);

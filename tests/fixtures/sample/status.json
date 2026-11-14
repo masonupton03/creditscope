@@ -1,0 +1,70 @@
+{
+  "run_time": "2026-11-16T21:45:00Z",
+  "first_run_date": "2026-11-02",
+  "days_with_success": 14,
+  "items": 12,
+  "new_today": [],
+  "gone_today": [],
+  "sources": [
+    {
+      "name": "nasdaq-SPY",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-QQQ",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-IWM",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-EFA",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-EEM",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-XLF",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-SHY",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-IEF",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-TLT",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-AGG",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-LQD",
+      "ok": true,
+      "count": 1
+    },
+    {
+      "name": "nasdaq-HYG",
+      "ok": true,
+      "count": 1
+    }
+  ]
+}

@@ -102,6 +102,7 @@ button, select, input { font: inherit; color: inherit; }
 
 /* ---------- tiles, cards ---------- */
 .tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 20px 0 0; }
+.tiles.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .tile { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 14px 16px; min-width: 0; }
 .tile .v { display: block; font-size: 26px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .tile .l { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .07em; margin-top: 4px; }
@@ -216,7 +217,7 @@ details.box li { margin: 8px 0; color: var(--text-2); }
 footer { padding: 30px 0 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border-soft); margin-top: 24px; }
 
 /* ---------- responsive ---------- */
-@media (max-width: 1000px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cols { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .tiles, .tiles.four { grid-template-columns: repeat(3, minmax(0, 1fr)); } .tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cols { grid-template-columns: 1fr; } }
 @media (max-width: 760px) {
   .toolbar .field { flex: 1 1 130px; } .toolbar .field.search { flex-basis: 100%; } .toolbar .input { width: 100%; }
   .grid2 { grid-template-columns: 1fr; }
@@ -237,6 +238,6 @@ footer { padding: 30px 0 56px; color: var(--muted); font-size: 13px; border-top:
   table.cards td.c-hide { display: none; }
 }
 @media (max-width: 760px) { .hm { display: none; } table.t th, table.t td { padding: 10px 8px; } }
-@media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tile .v { font-size: 22px; } .nav .btn.label { display: none; } .mover { grid-template-columns: 46px minmax(0, 1fr) 64px; } }
+@media (max-width: 560px) { .tiles, .tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tile .v { font-size: 22px; } .nav .btn.label { display: none; } .mover { grid-template-columns: 46px minmax(0, 1fr) 64px; } }
 @media (min-width: 761px) { table.cards .c-more { display: none; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .spinner { animation: none; } * { transition: none !important; } }

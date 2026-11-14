@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CreditScope · Trends</title>
+<meta name="description" content="Interactive trends computed in your browser from the CreditScope history file: returns, the biggest moves, stocks versus bonds, and trading volume.">
+<meta name="theme-color" content="#060a10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>try{var t=localStorage.getItem('creditscope.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="loading" id="loading"><div><div class="spinner"></div><div>Crunching the history file…</div></div></div>
+
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+    <a class="link" href="index.html">Today</a>
+    <a class="link" href="browse.html">Browse</a>
+    <a class="link active" href="trends.html" aria-current="page">Trends</a>
+    <span class="spacer"></span>
+    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Trends report · computed in your browser from history.csv</div>
+    <h1>What the ETF history says</h1>
+    <p class="lead" id="heroLead">Loading the history file…</p>
+    <div class="banner" id="dataBanner" role="status" hidden></div>
+    <div class="banner warn" id="histBanner" role="status" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="tiles four" id="tiles" aria-label="History summary"></section>
+
+  <section class="card section-gap" aria-labelledby="exH">
+    <h2 id="exH">Explore every value over time</h2>
+    <p class="cap" id="exCap">Pick a value and the ETFs to show. The horizontal axis lists trading sessions, so weekends and holidays, when the source just repeats the last quotes, never show up as extra days.</p>
+    <div class="toolbar">
+      <div class="field"><label for="exValue">Value</label>
+        <select class="input" id="exValue">
+          <option value="rebased">Rebased price (first session = 100)</option>
+          <option value="price">Price (USD)</option>
+          <option value="volume">Volume (shares)</option>
+          <option value="net_change">Net change (USD)</option>
+          <option value="pct_change">Daily change (%)</option>
+        </select></div>
+      <div class="field"><label>Quick select</label>
+        <div class="seg" role="group" aria-label="Quick select ETFs">
+          <button type="button" data-grp="all" aria-pressed="false">All</button>
+          <button type="button" data-grp="Stock" aria-pressed="false">Stocks</button>
+          <button type="button" data-grp="Bond" aria-pressed="false">Bonds</button>
+          <button type="button" data-grp="none" aria-pressed="false">None</button>
+        </div></div>
+    </div>
+    <div class="pick section-gap" id="exPick" role="group" aria-label="ETFs shown in the chart"></div>
+    <div class="chart-box tall section-gap"><canvas id="exChart" role="img" aria-label="Line chart of the selected value over time for the selected ETFs"></canvas></div>
+    <p class="cap" id="exNote" style="margin-top:10px"></p>
+  </section>
+
+  <div id="findings"></div>
+
+  <details class="box">
+    <summary>How every number on this page is computed</summary>
+    <ul>
+      <li><b>Source of all numbers:</b> this page downloads <a href="data/history.csv">data/history.csv</a> and recomputes everything in your browser each time it loads. Nothing is precomputed, so the page changes as the history grows.</li>
+      <li><b>Run vs session:</b> a <i>run</i> is one daily collection (the <code>date</code> column, UTC). A <i>session</i> is one market trading date (the <code>price_date</code> column). Weekend and holiday runs repeat the previous session's quotes, so each (ETF, session) pair is counted once, using the latest run that reported it.</li>
+      <li><b>Returns:</b> (latest price − first price) ÷ first price, using each ETF's first and latest session.</li>
+      <li><b>Daily moves:</b> the <code>pct_change</code> column, the source's own percent change versus the previous close.</li>
+      <li><b>Missing values:</b> an empty cell is skipped, never treated as zero. If a day's download failed, that day is simply missing from the history.</li>
+      <li><b>Limits:</b> a short history says little about the long run. This is a class project using delayed public quotes, not investment advice.</li>
+    </ul>
+  </details>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>CreditScope</b> is a class project that collects public quotes from Nasdaq once a day. Prices are delayed and for information only; this is not investment advice.
+    Change is measured against the previous run; on weekends and market holidays the source repeats the last trading session, so values stay unchanged.</p>
+    <p><a href="https://github.com/masonupton03/creditscope">Source code and data on GitHub</a> · <a href="data/history.csv">history.csv</a> · <a href="data/status.json">status.json</a></p>
+  </div>
+</footer>
+
+<script src="assets/vendor/chart.umd.min.js"></script>
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/trends.js"></script>
+</body>
+</html>
