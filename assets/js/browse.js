@@ -47,13 +47,13 @@
         '<td class="c-star"><button class="star" type="button" aria-pressed="' + on + '" aria-label="' + (on ? 'Remove ' : 'Add ') + CS.esc(r.item_id) + (on ? ' from' : ' to') + ' shortlist" title="' + (on ? 'Remove from shortlist' : 'Add to shortlist') + '">' + (on ? '★' : '☆') + '</button></td>' +
         '<td class="c-tk"><span class="tk">' + CS.esc(r.item_id) + '</span></td>' +
         '<td class="nm c-name" title="' + CS.esc(r.item) + '">' + CS.esc(r.item) + old + '</td>' +
-        '<td class="c-hide"><span class="cls ' + r.asset_class.toLowerCase() + '">' + CS.esc(r.asset_class) + '</span></td>' +
-        '<td class="c-hide">' + CS.esc(r.category) + '</td>' +
+        '<td class="c-hide ht"><span class="cls ' + r.asset_class.toLowerCase() + '">' + CS.esc(r.asset_class) + '</span></td>' +
+        '<td class="c-hide hb">' + CS.esc(r.category) + '</td>' +
         '<td class="r c-price">' + CS.money(r.price) + '</td>' +
         '<td class="r c-hide ' + dir + '">' + (r.net_change == null ? '—' : CS.signed(r.net_change)) + '</td>' +
         '<td class="r c-pct"><span class="badge ' + dir + '">' + (r.pct_change == null ? '—' : CS.pct(r.pct_change)) + '</span></td>' +
         '<td class="r c-hide">' + CS.int(r.volume) + '</td>' +
-        '<td class="c-hide">' + CS.esc(CS.date(r.price_date, true)) + '</td>' +
+        '<td class="c-hide hb">' + CS.esc(CS.date(r.price_date, true)) + '</td>' +
         '<td class="c-more"><span class="cls ' + r.asset_class.toLowerCase() + '">' + CS.esc(r.asset_class) + ' · ' + CS.esc(r.category) + '</span><span>Vol ' + CS.compact(r.volume) + '</span><span>' + (r.net_change == null ? '' : CS.signed(r.net_change)) + '</span><span>' + CS.esc(CS.date(r.price_date, true)) + '</span></td></tr>';
     }).join('');
     document.querySelectorAll('#tbl thead th[data-key]').forEach(th => {

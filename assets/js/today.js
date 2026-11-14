@@ -91,13 +91,13 @@
       const carried = r.price_date && r.price_date < r.date;
       return '<tr><td><a class="tk" href="browse.html?q=' + encodeURIComponent(r.item_id) + '">' + CS.esc(r.item_id) + '</a></td>' +
         '<td class="nm hm" title="' + CS.esc(r.item) + '">' + CS.esc(r.item) + '</td>' +
-        '<td class="hm"><span class="cls ' + r.asset_class.toLowerCase() + '">' + CS.esc(r.asset_class) + '</span></td>' +
+        '<td class="ht"><span class="cls ' + r.asset_class.toLowerCase() + '">' + CS.esc(r.asset_class) + '</span></td>' +
         '<td class="r">' + CS.money(r.price) + '</td>' +
-        '<td class="r ' + dir + '">' + (c.diff == null ? '—' : CS.signed(c.diff)) + '</td>' +
+        '<td class="r hs ' + dir + '">' + (c.diff == null ? '—' : CS.signed(c.diff)) + '</td>' +
         '<td class="r"><span class="badge ' + dir + '">' + (c.pct == null ? '—' : CS.pct(c.pct)) + '</span></td>' +
         '<td class="r hm">' + CS.int(r.volume) + '</td>' +
-        '<td>' + sparkline(pts, dir) + '</td>' +
-        '<td class="hm">' + CS.esc(CS.date(r.price_date, true)) + (carried ? ' <span class="chip" title="Markets were closed: quotes carried over from this session">carried over</span>' : '') + '</td></tr>';
+        '<td class="hv">' + sparkline(pts, dir) + '</td>' +
+        '<td class="ht">' + CS.esc(CS.date(r.price_date, true)) + (carried ? ' <span class="chip" title="Markets were closed: quotes carried over from this session">carried over</span>' : '') + '</td></tr>';
     }).join('');
   }
 
