@@ -1,0 +1,44 @@
+name: Daily update
+
+on:
+  schedule:
+    - cron: "45 21 * * *"   # every day (weekends and holidays included), 21:45 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download sources, save raw files, build history, write status
+        run: python -m creditscope run
+
+      - name: Commit raw files, history and status
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          RUN_DATE=$(python -c "import json; print(json.load(open('data/status.json'))['run_time'][:10])")
+          OK=$(python -c "import json; s=json.load(open('data/status.json'))['sources']; print(f\"{sum(x['ok'] for x in s)}/{len(s)}\")")
+          git commit -m "Daily run ${RUN_DATE}: ${OK} sources ok" || echo "nothing to commit"
+          git pull --rebase --autostash
+          git push
+
+      - name: Create or update today's issue and close the previous one
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m creditscope issue
