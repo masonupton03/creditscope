@@ -162,6 +162,7 @@ th[aria-sort="ascending"] .arrow, th[aria-sort="descending"] .arrow { opacity: 1
 
 /* ---------- controls ---------- */
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.toolbar .btn { align-self: end; margin-bottom: 2px; }
 .field { display: grid; gap: 4px; min-width: 0; }
 .field > label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
 .input, select.input { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; min-width: 0; font-size: 14px; }
@@ -217,6 +218,7 @@ footer { padding: 30px 0 56px; color: var(--muted); font-size: 13px; border-top:
 /* ---------- responsive ---------- */
 @media (max-width: 1000px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cols { grid-template-columns: 1fr; } }
 @media (max-width: 760px) {
+  .toolbar .field { flex: 1 1 130px; } .toolbar .field.search { flex-basis: 100%; } .toolbar .input { width: 100%; }
   .grid2 { grid-template-columns: 1fr; }
   .nav .wrap { gap: 14px; height: 54px; }
   .brand span.word { display: none; }

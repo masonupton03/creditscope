@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CreditScope · Browse</title>
+<meta name="description" content="Browse, search, filter and sort the latest price, volume and change of the 12 ETFs CreditScope tracks, and star your favorites into a shortlist.">
+<meta name="theme-color" content="#060a10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>try{var t=localStorage.getItem('creditscope.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="loading" id="loading"><div><div class="spinner"></div><div>Loading ETF data…</div></div></div>
+
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+    <a class="link" href="index.html">Today</a>
+    <a class="link active" href="browse.html" aria-current="page">Browse</a>
+    <a class="link" href="trends.html">Trends</a>
+    <span class="spacer"></span>
+    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Browse · search · filter · sort · shortlist</div>
+    <h1>Find the ETF you care about</h1>
+    <p class="lead" id="heroLead">Loading the latest values…</p>
+    <div class="banner" id="dataBanner" role="status" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card" aria-label="Shortlist">
+    <h2>Your shortlist</h2>
+    <p class="cap">Star an ETF in the table to save it here. Your shortlist is stored in this browser and is still there after a reload.</p>
+    <div class="shortlist" id="shortlist"></div>
+  </section>
+
+  <section class="card section-gap" aria-label="Filters">
+    <form class="toolbar" id="filters" onsubmit="return false" role="search">
+      <div class="field search"><label for="q">Search ETF name or ticker</label><input class="input" id="q" type="search" placeholder="e.g. treasury, SPY, high yield" autocomplete="off"></div>
+      <div class="field"><label for="fClass">Asset class</label><select class="input" id="fClass"></select></div>
+      <div class="field"><label for="fCat">Category</label><select class="input" id="fCat"></select></div>
+      <div class="field"><label for="fDir">Today's change</label><select class="input" id="fDir">
+        <option value="">All</option><option value="up">Up</option><option value="down">Down</option><option value="flat">Unchanged</option></select></div>
+      <div class="field"><label for="sortKey">Sort by</label><select class="input" id="sortKey"></select></div>
+      <div class="field"><label>Order</label><div class="seg" role="group" aria-label="Sort order">
+        <button type="button" id="ascBtn" aria-pressed="true">▲ Asc</button><button type="button" id="descBtn" aria-pressed="false">▼ Desc</button></div></div>
+      <label class="check"><input type="checkbox" id="fStar"> Shortlist only</label>
+      <button class="btn small" type="button" id="reset">Reset</button>
+    </form>
+    <p class="cap" id="count" style="margin:12px 0 0" aria-live="polite"></p>
+  </section>
+
+  <section class="card section-gap" aria-label="ETF table">
+    <div class="table-wrap">
+      <table class="t cards" id="tbl">
+        <thead><tr>
+          <th scope="col"><span class="sr-only">Shortlist</span></th>
+          <th scope="col" data-key="item_id"><button class="sort" type="button">ETF <span class="arrow">▲▼</span></button></th>
+          <th scope="col" data-key="item"><button class="sort" type="button">Name <span class="arrow">▲▼</span></button></th>
+          <th scope="col" data-key="asset_class"><button class="sort" type="button">Class <span class="arrow">▲▼</span></button></th>
+          <th scope="col" data-key="category"><button class="sort" type="button">Category <span class="arrow">▲▼</span></button></th>
+          <th scope="col" class="r" data-key="price"><button class="sort" type="button">Price <span class="arrow">▲▼</span></button></th>
+          <th scope="col" class="r" data-key="net_change"><button class="sort" type="button">Change <span class="arrow">▲▼</span></button></th>
+          <th scope="col" class="r" data-key="pct_change"><button class="sort" type="button">Change % <span class="arrow">▲▼</span></button></th>
+          <th scope="col" class="r" data-key="volume"><button class="sort" type="button">Volume <span class="arrow">▲▼</span></button></th>
+          <th scope="col" data-key="price_date"><button class="sort" type="button">Quote date <span class="arrow">▲▼</span></button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="empty" id="none" hidden>No ETF matches these filters. Try clearing the search or pressing Reset.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>CreditScope</b> is a class project that collects public quotes from Nasdaq once a day. Prices are delayed and for information only; this is not investment advice.
+    Change is measured against the previous run; on weekends and market holidays the source repeats the last trading session, so values stay unchanged.</p>
+    <p><a href="https://github.com/masonupton03/creditscope">Source code and data on GitHub</a> · <a href="data/history.csv">history.csv</a> · <a href="data/status.json">status.json</a></p>
+  </div>
+</footer>
+
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/browse.js"></script>
+</body>
+</html>
