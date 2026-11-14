@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "CreditScope: ETF Market Tracker",
+  "short_name": "CreditScope",
+  "description": "Daily tracker for 12 stock and bond ETFs: prices, volume, biggest moves and trends.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#060a10",
+  "theme_color": "#060a10",
+  "categories": ["finance", "business"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
