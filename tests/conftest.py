@@ -61,3 +61,21 @@ def symbols():
 @pytest.fixture
 def sources():
     return all_sources()
+
+
+def approx_equal(a, b, path="value", rel=1e-9):
+    """Deep comparison of JSON-like values where floats may differ in the last digits."""
+    import pytest as _pytest
+    if isinstance(b, dict):
+        assert isinstance(a, dict), path
+        for k in b:
+            assert k in a, f"{path}.{k} missing"
+            approx_equal(a[k], b[k], f"{path}.{k}", rel)
+    elif isinstance(b, list):
+        assert isinstance(a, list) and len(a) == len(b), f"{path} length {len(a) if isinstance(a, list) else a} vs {len(b)}"
+        for i, (x, y) in enumerate(zip(a, b)):
+            approx_equal(x, y, f"{path}[{i}]", rel)
+    elif isinstance(b, float) or isinstance(a, float):
+        assert a == _pytest.approx(b, rel=rel, abs=1e-12), path
+    else:
+        assert a == b, f"{path}: {a!r} vs {b!r}"
