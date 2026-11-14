@@ -42,3 +42,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python -m creditscope issue
+
+  deploy:
+    needs: update
+    if: ${{ !cancelled() }}        # publish the newest data even if the issue step had a problem
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
