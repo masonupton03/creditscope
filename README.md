@@ -3,18 +3,178 @@
 [![Tests](https://github.com/masonupton03/creditscope/actions/workflows/tests.yml/badge.svg)](https://github.com/masonupton03/creditscope/actions/workflows/tests.yml)
 [![Daily update](https://github.com/masonupton03/creditscope/actions/workflows/daily.yml/badge.svg)](https://github.com/masonupton03/creditscope/actions/workflows/daily.yml)
 
-Automated daily tracker for 12 stock and bond ETFs (SPY, QQQ, IWM, EFA, EEM, XLF, SHY, IEF, TLT, AGG, LQD, HYG),
-built for Financial Data Analytics - Data Tracker Project.
+**Live site: <https://masonupton03.github.io/creditscope/>**
 
-**Status:** pipeline under construction (website and tests come next). Full documentation will be added as each part is finished.
+CreditScope is an automated daily tracker for **12 stock and bond ETFs**. Every day a GitHub Actions workflow downloads
+each ETF's latest quote, saves the raw responses, rebuilds a one-row-per-ETF-per-day history, opens a GitHub Issue
+listing the biggest moves, and publishes an installable website with three pages (Today, Browse, Trends).
 
-## Data source testing (2026-11-14, from a GitHub Actions runner)
+Built for *Financial Data Analytics, Data Tracker Project*, with Claude Code.
 
-| Source | Result |
+| ETF | Class | Category | ETF | Class | Category |
+|---|---|---|---|---|---|
+| SPY | Stock | US large cap | SHY | Bond | Short Treasury |
+| QQQ | Stock | US growth | IEF | Bond | Intermediate Treasury |
+| IWM | Stock | US small cap | TLT | Bond | Long Treasury |
+| EFA | Stock | Developed international | AGG | Bond | Broad market |
+| EEM | Stock | Emerging markets | LQD | Bond | Investment-grade corporate |
+| XLF | Stock | Financials | HYG | Bond | High-yield corporate |
+
+The key that identifies an item from day to day is the **ticker** (`item_id`, e.g. `SPY`).
+
+## How it works
+
+1. **Daily schedule.** `daily.yml` runs every day at 21:45 UTC (weekends and holidays included, shortly after the US
+   close) and can be started by hand (`workflow_dispatch`). Each run takes the **UTC date of the moment it runs**.
+2. **Download.** One request per ETF to the Nasdaq quote API. Each response is saved exactly as received, gzip-compressed,
+   in `data/raw/<YYYY-MM-DD>/<source>.json.gz` (for example `data/raw/2026-11-14/nasdaq-SPY.json.gz`). A source that
+   fails (after 3 attempts) or returns something unusable writes **no raw file**, and the run carries on with the others.
+   The result of every source, success or failure, is recorded in `data/runs/<date>.json`.
+3. **Build.** `data/history.csv` is rebuilt **from the raw files alone**, so rerunning the build gives the same file and
+   a change to a rule applies to every day. A day with no raw file for a source has no row from that source. Rows are
+   sorted by date, then `item_id`.
+4. **Status.** `data/status.json` describes the latest run.
+5. **Issue.** A GitHub Issue titled `CreditScope daily update: <date>` is opened every day (even with no changes) listing
+   the biggest moves and any item that appeared or disappeared, and the previous day's issue is closed.
+6. **Commit and publish.** The raw files, history, run log and status are committed by the workflow, then the site is
+   deployed to GitHub Pages.
+
+A run counts as successful when it finishes and commits, even if some sources failed. **A second run on the same day**
+replaces that day's raw files (only for sources that succeed again), rebuilds the history, and updates that day's issue
+instead of opening another, so each day counts once.
+
+### Weekends, holidays and market dates
+
+Markets are closed on weekends and holidays, so the source repeats the last trading session's quote. The history keeps
+both dates: `date` is the UTC **collection** date, `price_date` is the **market** date the quote belongs to. The site
+and the issues label repeated quotes as "carried over" and never present them as new market activity. The Trends page
+counts each (ETF, market date) pair once.
+
+### The move rule
+
+For every ETF present in both the latest run and the previous run (the previous date that has rows in `history.csv`):
+
+`move = (price_now − price_before) ÷ price_before × 100`
+
+ETFs are ranked by the **absolute value** of the move (ties broken by ticker); the **top 5** with a non-zero move are
+listed in the issue with their old and new price and volume. ETFs that appear in only one of the two runs are listed as
+*appeared* or *disappeared*. An ETF whose download failed is reported as a failed source, not as disappeared. If the
+source still reports the same trading session, the issue says so.
+
+## Data source
+
+| Source | Format | URL pattern | Notes |
+|---|---|---|---|
+| `nasdaq-<SYMBOL>` (12 sources) | JSON | `https://api.nasdaq.com/api/quote/<SYMBOL>/info?assetclass=etf` | No login or API key. Only the 12 tracked symbols are requested; from each response the pipeline keeps the quote fields listed below (the full response is saved raw). |
+
+Source testing on 2026-11-14 from a GitHub Actions runner: Nasdaq returned all 12 ETFs; **Yahoo Finance** chart JSON
+returned HTTP 429 (blocked) from the runner; **Stooq** CSV requires a JavaScript proof-of-work challenge. Nasdaq is
+therefore the only source. If it stops working it will be replaced by another (see `creditscope/sources.py` and
+`creditscope/convert.py`, where adding a source means one new converter).
+
+## Columns of `data/history.csv`
+
+One row per ETF per run date. Empty means the source did not report the value that day.
+
+| Column | Meaning | Unit / format |
+|---|---|---|
+| `date` | UTC date of the run that collected the row | `YYYY-MM-DD` |
+| `item_id` | ETF ticker (the key) | text, e.g. `SPY` |
+| `item` | ETF name as reported by the source | text |
+| `source` | Source that produced the row (= raw file name) | text, e.g. `nasdaq-SPY` |
+| `asset_class` | `Stock` or `Bond` | text |
+| `category` | Sub-category (e.g. Long Treasury) | text |
+| `price` | Last sale price (the close once the market has closed) | US dollars |
+| `volume` | Shares traded in the session | shares |
+| `net_change` | Change versus the previous close, as reported by the source | US dollars |
+| `pct_change` | Percent change versus the previous close, as reported by the source | percent (`-0.38` means −0.38 %) |
+| `price_date` | Market date of the quote; earlier than `date` on weekends and holidays | `YYYY-MM-DD` |
+| `market_status` | Market status reported with the quote (`Closed`, `Open`, …) | text |
+
+`price`, `volume`, `net_change` and `pct_change` are the numeric values tracked for every ETF.
+
+## `data/status.json`
+
+`run_time` (UTC, of the latest run), `first_run_date` (date of the earliest raw file), `days_with_success` (number of
+different dates with a raw file), `items` (items in the latest run), `new_today` and `gone_today` (**lists of
+`item_id`s** that appeared or disappeared; the Today page shows their counts), and `sources`, a list with one entry per
+source holding `name`, `ok` and `count`.
+
+## Rebuild the history from the raw files
+
+```bash
+python -m creditscope build
+```
+
+This reads only `data/raw/` and rewrites `data/history.csv`; no network access is needed. The daily command is
+`python -m creditscope run` (download, build, status) followed by `python -m creditscope issue` (needs the `gh` CLI and
+`GH_TOKEN`). The pipeline uses only the Python standard library.
+
+## The website
+
+Served from the repository root by GitHub Pages; all three pages load `data/history.csv` and `data/status.json` in the
+browser and do their calculations there.
+
+* **Today** (`index.html`): last run time, status of every source, the counts from `status.json`, the latest value of
+  every ETF with its change since the previous run and a trend line, and the biggest moves.
+* **Browse** (`browse.html`): latest values with search, filters (asset class, category, direction, shortlist only),
+  sorting up and down on every numeric column, and a ★ on every ETF that saves it to a shortlist kept in the browser
+  (`localStorage`, still there after reload).
+* **Trends** (`trends.html`): a chart of each numeric value over time with an ETF picker, plus four findings whose
+  headlines, numbers and explanations are generated in the browser from `history.csv` (return since the first session,
+  biggest single-day move, stocks versus bonds, trading volume). It handles short histories gracefully.
+* **Installable and offline.** `manifest.webmanifest` and `sw.js` make it installable as an app. Online, pages load the
+  data from the network; offline, the site still opens and shows the last data it loaded (with a banner).
+
+All pages share one navigation bar, one stylesheet (fonts and colours) and a dark theme with a light-mode toggle.
+Chart.js (MIT) is vendored in `assets/vendor/` so charts work offline.
+
+## Tests
+
+```bash
+python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pytest
+```
+
+`tests.yml` runs the suite on every push. It covers conversion of the source to the common columns (including missing
+values and unusable responses), failed downloads, the move rule, the history logic (determinism, ordering, rebuilding
+from raw files, a changed rule applying to every day), same-day reruns, the issue logic, the site structure, and a
+check that the statistics the Trends page computes in the browser (`assets/js/stats.js`) equal an independent Python
+implementation (`tests/ref_stats.py`) on the same history file.
+
+## Files
+
+| Path | What it does |
 |---|---|
-| Nasdaq quote API (`api.nasdaq.com/api/quote/{SYMBOL}/info?assetclass=etf`) | 12/12 ETFs returned price and volume. **Used.** |
-| Yahoo Finance chart JSON | 0/12: HTTP 429 (Too Many Requests) from the runner. Not usable. |
-| Stooq CSV | Not usable: requires a JavaScript proof-of-work challenge. |
+| `creditscope/config.py` | The 12 ETFs, history columns and paths. |
+| `creditscope/sources.py` | List of sources and the HTTP download with retries. |
+| `creditscope/convert.py` | Converts one raw response to the common columns. |
+| `creditscope/raw.py` | Writes and reads the compressed raw files. |
+| `creditscope/build.py` | Builds `data/history.csv` from the raw files. |
+| `creditscope/moves.py` | The move rule and the comparison of the latest run with the previous run. |
+| `creditscope/status.py` | Writes `data/status.json` and the per-day run log. |
+| `creditscope/run.py` | One daily run: download, save raw, build, status. |
+| `creditscope/issues.py` | Creates, updates and closes the daily GitHub Issues through `gh`. |
+| `creditscope/__main__.py` | Command line: `run`, `build`, `issue`. |
+| `data/raw/<date>/*.json.gz` | Compressed raw responses (one per source per day). |
+| `data/runs/<date>.json` | Result of every source in that day's latest run, including errors. |
+| `data/history.csv`, `data/status.json` | The two data files described above. |
+| `index.html`, `browse.html`, `trends.html` | The Today, Browse and Trends pages. |
+| `assets/css/site.css` | Shared design system (dark and light themes). |
+| `assets/js/common.js` | Theme, data loading, number formatting, shortlist storage, install prompt. |
+| `assets/js/stats.js` | CSV parser and every calculation (runs in the browser and in Node tests). |
+| `assets/js/today.js`, `browse.js`, `trends.js` | Page scripts. |
+| `assets/vendor/chart.umd.min.js` | Chart.js 4.4.7. |
+| `assets/icons/*`, `scripts/make_icons.py` | App icons and the script that draws them. |
+| `manifest.webmanifest`, `sw.js` | Web app manifest and service worker (offline support). |
+| `.github/workflows/daily.yml` | Daily pipeline: run, commit, issue, then deploy. |
+| `.github/workflows/pages.yml` | Publishes the site to GitHub Pages (on push and after each daily run). |
+| `.github/workflows/tests.yml` | Runs pytest on every push. |
+| `tests/` | pytest suite, a Node test for `stats.js`, fixtures, and a deterministic sample-data generator. |
+| `pytest.ini`, `requirements-dev.txt` | Test configuration and dependencies. |
 
-Nasdaq is currently the only source. It is requested once per ETF, and each response is one source named
-`nasdaq-<SYMBOL>`. Only the 12 tracked symbols are requested.
+## Notes and limits
+
+* Quotes are delayed public data from Nasdaq, for information only; this is not investment advice.
+* Raw files are committed to the repository but are not published on the site (only the two data files are).
+* The history starts on 2026-11-14; early on, the Trends findings use fewer sessions and say so.
