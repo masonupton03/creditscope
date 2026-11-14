@@ -1,5 +1,8 @@
 # CreditScope
 
+[![Tests](https://github.com/masonupton03/creditscope/actions/workflows/tests.yml/badge.svg)](https://github.com/masonupton03/creditscope/actions/workflows/tests.yml)
+[![Daily update](https://github.com/masonupton03/creditscope/actions/workflows/daily.yml/badge.svg)](https://github.com/masonupton03/creditscope/actions/workflows/daily.yml)
+
 Automated daily tracker for 12 stock and bond ETFs (SPY, QQQ, IWM, EFA, EEM, XLF, SHY, IEF, TLT, AGG, LQD, HYG),
 built for Financial Data Analytics - Data Tracker Project.
 
