@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CreditScope · Today</title>
+<meta name="description" content="CreditScope tracks 12 stock and bond ETFs every day: latest prices and volume, the biggest moves since the previous run, and the health of every data source.">
+<meta name="theme-color" content="#060a10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+<script>try{var t=localStorage.getItem('creditscope.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="loading" id="loading"><div><div class="spinner"></div><div>Loading the latest ETF data…</div></div></div>
+
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+    <a class="link active" href="index.html" aria-current="page">Today</a>
+    <a class="link" href="browse.html">Browse</a>
+    <a class="link" href="trends.html">Trends</a>
+    <span class="spacer"></span>
+    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Daily ETF tracker · 12 stock &amp; bond ETFs</div>
+    <h1 id="heroTitle">Today in the ETF market</h1>
+    <p class="lead" id="heroLead">Loading the latest run…</p>
+    <div class="byline">By <b>Mason Upton</b> · Financial Data Analytics · Data Tracker Project</div>
+    <div class="banner" id="dataBanner" role="status" hidden></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="tiles" id="tiles" aria-label="Run summary"></section>
+
+  <section class="cols section-gap">
+    <div class="card" aria-labelledby="movH">
+      <h2 id="movH">Biggest moves since the previous run</h2>
+      <p class="cap" id="movCap"></p>
+      <div id="movers"></div>
+    </div>
+    <div class="stack">
+      <div class="card" aria-labelledby="srcH">
+        <h2 id="srcH">Source status</h2>
+        <p class="cap" id="srcCap"></p>
+        <div class="sources" id="sources"></div>
+      </div>
+      <div class="card" id="changesCard" hidden aria-labelledby="chgH">
+        <h2 id="chgH">Items that appeared or disappeared</h2>
+        <div id="changes"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card section-gap" aria-labelledby="tblH">
+    <h2 id="tblH">Latest values for every ETF</h2>
+    <p class="cap" id="tblCap"></p>
+    <div class="table-wrap">
+      <table class="t" id="tbl">
+        <thead><tr>
+          <th scope="col">ETF</th><th scope="col" class="hm">Name</th><th scope="col" class="hm">Class</th>
+          <th scope="col" class="r">Price</th><th scope="col" class="r">Change</th><th scope="col" class="r">Change %</th>
+          <th scope="col" class="r hm">Volume</th><th scope="col">Trend</th><th scope="col" class="hm">Quote date</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>CreditScope</b> is a class project that collects public quotes from Nasdaq once a day. Prices are delayed and for information only; this is not investment advice.
+    Change is measured against the previous run; on weekends and market holidays the source repeats the last trading session, so values stay unchanged.</p>
+    <p><a href="https://github.com/masonupton03/creditscope">Source code and data on GitHub</a> · <a href="data/history.csv">history.csv</a> · <a href="data/status.json">status.json</a></p>
+  </div>
+</footer>
+
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/today.js"></script>
+</body>
+</html>
