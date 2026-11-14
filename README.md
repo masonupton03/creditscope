@@ -39,6 +39,10 @@ The key that identifies an item from day to day is the **ticker** (`item_id`, e.
 6. **Commit and publish.** The raw files, history, run log and status are committed by the workflow, then the site is
    deployed to GitHub Pages.
 
+GitHub starts scheduled workflows on a best-effort basis and may delay them by several minutes; the 21:45 UTC slot leaves
+over two hours before UTC midnight so a run still lands on the intended date. If a scheduled run is ever missed, start
+it by hand from the Actions tab (`Daily update` → *Run workflow*).
+
 A run counts as successful when it finishes and commits, even if some sources failed. **A second run on the same day**
 replaces that day's raw files (only for sources that succeed again), rebuilds the history, and updates that day's issue
 instead of opening another, so each day counts once.
@@ -129,6 +133,13 @@ browser and do their calculations there.
 All pages share one navigation bar, one stylesheet (fonts and colours) and a dark theme with a light-mode toggle.
 Chart.js (MIT) is vendored in `assets/vendor/` so charts work offline.
 
+## Run it locally
+
+```bash
+python -m creditscope run          # download today's quotes, save raw files, rebuild history, write status
+python -m http.server 8000         # then open http://localhost:8000/ (the service worker needs http://localhost or https)
+```
+
 ## Tests
 
 ```bash
@@ -136,7 +147,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest
 ```
 
-`tests.yml` runs the suite on every push. It covers conversion of the source to the common columns (including missing
+`tests.yml` runs the suite on every push and pull request (Python 3.12). The browser-statistics check needs Node and is skipped if Node is missing. It covers conversion of the source to the common columns (including missing
 values and unusable responses), failed downloads, the move rule, the history logic (determinism, ordering, rebuilding
 from raw files, a changed rule applying to every day), same-day reruns, the issue logic, the site structure, and a
 check that the statistics the Trends page computes in the browser (`assets/js/stats.js`) equal an independent Python
@@ -146,6 +157,7 @@ implementation (`tests/ref_stats.py`) on the same history file.
 
 | Path | What it does |
 |---|---|
+| `creditscope/__init__.py` | Marks the folder as the `creditscope` Python package. |
 | `creditscope/config.py` | The 12 ETFs, history columns and paths. |
 | `creditscope/sources.py` | List of sources and the HTTP download with retries. |
 | `creditscope/convert.py` | Converts one raw response to the common columns. |
@@ -170,8 +182,19 @@ implementation (`tests/ref_stats.py`) on the same history file.
 | `.github/workflows/daily.yml` | Daily pipeline: run, commit, issue, then deploy. |
 | `.github/workflows/pages.yml` | Publishes the site to GitHub Pages (on push and after each daily run). |
 | `.github/workflows/tests.yml` | Runs pytest on every push. |
-| `tests/` | pytest suite, a Node test for `stats.js`, fixtures, and a deterministic sample-data generator. |
-| `pytest.ini`, `requirements-dev.txt` | Test configuration and dependencies. |
+| `tests/conftest.py` | Shared test helpers: synthetic Nasdaq responses and a fake downloader. |
+| `tests/test_convert.py` | Conversion of the source response to the common columns, missing values, unusable responses. |
+| `tests/test_moves.py` | The move rule, ranking, appeared/disappeared items, weekend carry-overs. |
+| `tests/test_build.py` | History logic: ordering, reproducibility from raw files, rule changes, corrupt files. |
+| `tests/test_run.py` | Full runs with a fake downloader: failed sources, same-day reruns, `status.json`, run log. |
+| `tests/test_issues.py` | Issue text and the create / update / close logic (the `gh` CLI is mocked). |
+| `tests/test_site.py` | Website checks (shared nav, assets, manifest, service worker) and the browser-vs-Python statistics comparison. |
+| `tests/js/stats.test.js` | Node test of `assets/js/stats.js` against numbers computed independently in Python. |
+| `tests/ref_stats.py` | Independent Python implementation of the Trends statistics (test reference only). |
+| `tests/sample_data.py`, `tests/make_fixtures.py` | Deterministic sample history (weekends, a failed source, an all-failed day) and the fixture generator. |
+| `tests/fixtures/` | A real saved Nasdaq response and the generated sample `history.csv`, `status.json`, `expected.json`. |
+| `pytest.ini`, `requirements-dev.txt` | Test configuration and dependencies (pytest). |
+| `.gitignore`, `README.md` | Ignored local files; this document. |
 
 ## Notes and limits
 
