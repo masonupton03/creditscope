@@ -2,10 +2,10 @@
 //   node offline.js prime  http://127.0.0.1:8801/ <profile-dir>     visit the pages online so the service worker caches them
 //   (stop the web server)
 //   node offline.js verify http://127.0.0.1:8801/ <profile-dir>     reopen them with no network: they must still open and show data
-const { chromium } = require('playwright');
+const chromium = require('./launch');
 const [phase, BASE, PROFILE] = process.argv.slice(2);
 (async () => {
-  const ctx = await chromium.launchPersistentContext(PROFILE, { channel: 'chrome', viewport: { width: 1280, height: 900 } });
+  const ctx = await chromium.launchPersistentContext(PROFILE, { viewport: { width: 1280, height: 900 } });
   const p = ctx.pages()[0] || await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   const pages = ['index.html', 'browse.html', 'trends.html'];
   if (phase === 'prime') {

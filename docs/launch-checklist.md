@@ -27,8 +27,9 @@ owner's explicit approval at that moment. Approval of the plan is not approval o
 - [ ] Bring the branch up to date with `main` (it is behind by the daily-run data commits): `git fetch && git merge origin/main`
       **into the feature branch**. Expect no conflicts (the branch does not touch `data/`); resolve any by keeping `main`'s `data/`.
 - [ ] Full test suite green locally: `python -m pytest` and `node --test tests/js/*.test.js`.
-- [ ] Browser audits (`scripts/browser-audit/README.md`): `required-pages.js` (22/22), `regression.js` (all pass), `offline.js`
-      (prime, stop server, verify), and, with a throwaway home, `privacy.js`.
+- [ ] Browser audits (`scripts/browser-audit/README.md`) in Chrome, Firefox and WebKit (`BROWSER=...`): `required-pages.js` (22/22), `regression.js` (all pass), `offline.js`
+      (prime, stop server, verify), and, with a throwaway home, `privacy.js`. Results and limits: `docs/browser-compatibility.md`.
+- [ ] Real-device check on an iPhone (and an Android phone if available) using the list at the end of `docs/browser-compatibility.md`. Headless WebKit does not replace it.
 - [ ] README check: `tests/test_readme.py` passes (README lists every tracked file; assignment sections intact).
 - [ ] `docs/rubric-audit.md` re-run: every row re-verified, the day counter and CI status updated.
 - [ ] Visual check of the five research pages and the three required pages at 320, 390, 768 and 1280 px, dark and light (design notes and tradeoffs: `docs/design-system.md`).
@@ -69,6 +70,8 @@ owner's explicit approval at that moment. Approval of the plan is not approval o
 - [ ] No console errors on any page; 404s only for `explorer/sec/company/*` (none expected: the placeholder index is empty).
 
 ## 6. Going live with real SEC data (separate approval; needs the mailbox)
+
+The exact owner steps are in `docs/sec-activation.md`; `python3 -m fundamentals preflight` checks readiness without contacting the SEC. Summary:
 
 1. Create the mailbox; add the repository secret `SEC_USER_AGENT` = `CreditScope educational project <mailbox>`.
 2. Copy `docs/fundamentals-workflow.example.yml` to `.github/workflows/fundamentals.yml` (manual trigger only, builds an artifact,

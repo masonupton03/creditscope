@@ -300,3 +300,7 @@ details.why > summary:hover { color: var(--text); }
 .page-head .intro { margin: var(--sp-2) 0 0; font-size: 13px; color: var(--muted); max-width: 74ch; }
 .mt { margin-top: var(--sp-5); }
 table.t tbody th { position: static; background: transparent; color: var(--text-2); font-size: 14px; font-weight: 500; border-bottom-color: var(--line); }
+
+/* iPhone Safari zooms the page when a text field under 16px gets focus, so phones get 16px fields. This follows documented
+   behaviour; it has not been verified on a device (docs/browser-compatibility.md). explorer.css and portfolio.css repeat it for their own fields. */
+@media (max-width: 760px) { .input, select.input { font-size: 16px; } }

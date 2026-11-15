@@ -4,7 +4,7 @@
 // them is exposed in the "hide" view: visible text, element attributes, chart data, and OCR of real screenshots (including one
 // with a chart tooltip open). It also checks that risk statistics are still shown.
 // WARNING: it overwrites the portfolio file of the server it talks to. Use a throwaway CREDITSCOPE_HOME.
-const { chromium } = require('playwright');
+const chromium = require('./launch');
 const { execFileSync } = require('child_process');
 const assert = require('assert');
 const [BASE, OUT, OCR] = [process.argv[2], process.argv[3] || '.', process.argv[4] || '/tmp/cs-ocr'];
@@ -33,7 +33,7 @@ const grab = p => p.evaluate(() => {
 
 (async () => {
   await save();
-  const b = await chromium.launch({ channel: 'chrome' });
+  const b = await chromium.launch();
   const p = await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => m.type() === 'error' && errs.push(m.text()));
   // changing only the address-bar hash makes the page reload itself (by design), so wait for that instead of forcing a second reload

@@ -1,7 +1,7 @@
 // Browser regression for the public pages (static server, simulated data): navigation between pages, loading / error / empty states,
 // mobile overflow at several widths, and an axe-core accessibility scan in both themes.
 //   node regression.js http://127.0.0.1:8801/        (needs playwright and axe-core; see README.md)
-const { chromium } = require('playwright');
+const chromium = require('./launch');
 const fs = require('fs');
 const assert = require('assert');
 const BASE = process.argv[2] || 'http://127.0.0.1:8801/';
@@ -11,7 +11,7 @@ const ok = (name, cond, detail) => { results.push((cond ? 'PASS ' : 'FAIL ') + n
 const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL', 'fundamentals.html#DEMA', 'compare.html#s=AAPL,MSFT,TLT&p=1Y&f=DEMA,DEMB', 'portfolio.html', 'platform.html'];
 
 (async () => {
-  const b = await chromium.launch({ channel: 'chrome' });
+  const b = await chromium.launch();
   const newPage = async (w, scheme) => { const ctx = await b.newContext({ viewport: { width: w || 1280, height: 900 }, colorScheme: scheme || 'dark', serviceWorkers: 'block' }); /* a service worker would bypass page.route fakes */ const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('console', m => m.type() === 'error' && p.errs.push(m.text())); return p; };
 
   // ---- cross-page navigation: links appear only when the target has data, and explain why not
@@ -90,6 +90,29 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('compare ignores unknown tickers in the address', (await p.locator('#chosen li').count()) === 2 && p.errs.length === 0, p.errs.join('|'));
     ok('compare shows prices-through freshness', /prices through/.test(await p.textContent('#pxCap')));
     await p.close();
+  }
+  // ---- Fundamentals table on a phone: latest six years by default, all years on request, newest year always visible; charts paint
+  {
+    const p = await newPage(390);
+    await p.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await p.waitForSelector('.fd-table');
+    const heads = () => p.$$eval('.fd-table thead th.r', t => t.map(x => ({ y: x.textContent.slice(0, 6), shown: !!(x.offsetWidth || x.offsetHeight) })));
+    let h = await heads(); const total = h.length, shown = h.filter(x => x.shown).length;
+    ok('fundamentals phone: the data holds more than six years and six are shown by default', total > 6 && shown === 6, total + ' in the table, ' + shown + ' shown');
+    ok('fundamentals phone: the newest year is the last visible column', h[h.length - 1].shown && /FY/.test(h[h.length - 1].y));
+        await p.click('#fdAllYears'); h = await heads();
+    ok('fundamentals phone: "Show all" reveals every year and reports its state', h.every(x => x.shown) && (await p.getAttribute('#fdAllYears', 'aria-expanded')) === 'true');
+    await p.click('#fdAllYears'); h = await heads(); ok('fundamentals phone: the button collapses back to six', h.filter(x => x.shown).length === 6);
+    await p.close();
+    const d = await newPage(1280);
+    await d.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await d.waitForSelector('.fd-table');
+    ok('fundamentals desktop: every year is shown and the toggle is hidden', (await d.$$eval('.fd-table thead th.r', t => t.every(x => x.offsetWidth > 0))) && !(await d.isVisible('#fdAllYears')));
+    await d.waitForTimeout(600);
+    const painted = await d.evaluate(() => Array.from(document.querySelectorAll('canvas')).map(c => { const g = c.getContext('2d'); const a = g.getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < a.length; i += 4) if (a[i]) return true; return false; }));
+    ok('charts paint: every canvas on fundamentals has drawn pixels', painted.length >= 4 && painted.every(Boolean), painted.join(','));
+    await d.goto(BASE + 'explorer.html#SPY', { waitUntil: 'networkidle' }); await d.waitForTimeout(800);
+    const painted2 = await d.evaluate(() => Array.from(document.querySelectorAll('canvas')).map(c => { const g = c.getContext('2d'); const a = g.getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < a.length; i += 4) if (a[i]) return true; return false; }));
+    ok('charts paint: every canvas on explorer has drawn pixels', painted2.length >= 1 && painted2.every(Boolean), painted2.join(','));
+    await d.close();
   }
   // ---- mobile overflow at several widths on every page
   for (const w of [320, 360, 390, 768]) {

@@ -173,3 +173,16 @@ def test_manifest_colours_match_the_light_default():
     import json
     m = json.loads((ROOT / "manifest.webmanifest").read_text())
     assert m["theme_color"] == m["background_color"] == "#f6f7f9"
+
+
+def test_fundamentals_table_keeps_all_years_in_the_page_and_hides_older_ones_only_on_phones():
+    js = (ROOT / "assets/js/fundamentals.js").read_text()
+    css = (ROOT / "assets/css/explorer.css").read_text()
+    assert "slice(-10)" in js and "ys.length - 6" in js and "fdAllYears" in js and "aria-expanded" in js
+    assert ".fd-table:not(.all) .old { display: none; }" in css
+    i = css.index(".fd-table:not(.all) .old")
+    assert "@media (max-width: 640px)" in css[css.rindex("@media", 0, i):i + 10]      # desktop is unaffected
+
+
+def test_form_fields_are_16px_on_phones_so_iphone_safari_does_not_zoom():
+    assert "@media (max-width: 760px) { .input, select.input { font-size: 16px; } }" in (ROOT / "assets/css/site.css").read_text()

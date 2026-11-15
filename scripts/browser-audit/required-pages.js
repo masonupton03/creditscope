@@ -1,7 +1,7 @@
 // Functional check of the three assignment pages (Today, Browse, Trends) in a real browser, plus the installability prerequisites.
 //   node required-pages.js http://127.0.0.1:8801/
 // Reads data/history.csv and data/status.json from the same server and compares what the pages show with the files.
-const { chromium } = require('playwright');
+const chromium = require('./launch');
 const assert = require('assert');
 const BASE = process.argv[2] || 'http://127.0.0.1:8801/';
 const out = []; const bad = [];
@@ -19,7 +19,7 @@ const ok = (n, c, d) => { out.push((c ? 'PASS ' : 'FAIL ') + n + (c || !d ? '' :
   const dates = Array.from(new Set(rows.map(r => r[0]))).sort(); const lastDate = dates[dates.length - 1];
   const latest = rows.filter(r => r[0] === lastDate);
 
-  const b = await chromium.launch({ channel: 'chrome' });
+  const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => m.type() === 'error' && errs.push(m.text()));
 

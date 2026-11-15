@@ -395,3 +395,29 @@ def test_files_record_the_reducer_version_and_a_digest_of_their_source_without_e
 def test_published_company_files_stay_compact():
     big = [f.stat().st_size for f in (ROOT / "explorer" / "sec-sample" / "company").glob("*.json")]
     assert max(big) < 60_000, big          # 30 companies must stay well under a few MB in the public repository
+
+
+def test_preflight_makes_no_request_and_never_prints_the_contact(monkeypatch, capsys):
+    import socket
+    def refuse(*a, **k):
+        raise AssertionError("preflight must not open a network connection")
+    monkeypatch.setattr(socket, "create_connection", refuse)
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.delenv(sec.ENV, raising=False)
+    assert cli.main(["preflight"]) == 2
+    out = capsys.readouterr().out
+    assert "NOT READY" in out and "MSFT, AAPL, WMT, JPM" in out and "No request was made" in out
+    monkeypatch.setenv(sec.ENV, "CreditScope team@project.invalid")
+    assert cli.main(["preflight"]) == 0
+    out = capsys.readouterr().out
+    assert "team@project.invalid" not in out and "Ready" in out and "5 requests" in out
+    assert cli.main(["preflight", "--tickers", "bad!"]) == 2
+
+
+def test_example_workflow_is_inactive_takes_tickers_through_env_and_commits_nothing():
+    text = (ROOT / "docs" / "fundamentals-workflow.example.yml").read_text()
+    assert not (ROOT / ".github" / "workflows" / "fundamentals.yml").exists()          # it stays an example until the owner activates it
+    assert "workflow_dispatch" in text and "MSFT,AAPL,WMT,JPM" in text and "permissions:\n  contents: read" in text
+    assert "git push" not in text and "git commit" not in text
+    assert '"${{ inputs' not in text.split("run:", 1)[1]                                  # inputs are never spliced into shell text
+    assert "preflight" in text and "secrets.SEC_USER_AGENT" in text

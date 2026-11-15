@@ -68,6 +68,29 @@ def build(client: SecClient, tickers: list, out: Path, log=print) -> dict:
     return {"written": [c["ticker"] for c in done], "skipped": skipped}
 
 
+FIRST_RUN = ("MSFT", "AAPL", "WMT", "JPM")
+
+
+def run_preflight(args, env=None) -> int:
+    """Offline readiness check: never opens a connection and never prints the contact value."""
+    tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    bad = [t for t in tickers if not SYMBOL.match(t)]
+    problems = []
+    try:
+        user_agent_from_env(env)
+        contact = "set and well-formed (value not shown)"
+    except SecError as e:
+        contact = "NOT READY: " + str(e)
+        problems.append("contact")
+    if bad:
+        problems.append("tickers")
+    print("SEC contact (SEC_USER_AGENT): " + contact)
+    print("Companies: " + (", ".join(tickers) if tickers else "none") + (("  INVALID: " + ", ".join(bad)) if bad else ""))
+    print(f"A build would make {1 + len(tickers)} requests (1 ticker directory + 1 per company) at 5 per second; `verify` adds up to about 20 per company (one per distinct data tag).")
+    print("No request was made." + (" Fix the items above, then run the build." if problems else " Ready: the build can run once you authorize it."))
+    return 2 if problems else 0
+
+
 def run_verify(args, ua, client=None) -> int:
     from . import verify as V
     t = args.ticker.upper()
@@ -97,7 +120,11 @@ def main(argv=None) -> int:
     sub.add_parser("sample", help="rebuild the simulated demo set (no network)")
     v = sub.add_parser("verify", help="cross-check a built company through another SEC endpoint and write a manual checklist (needs SEC_USER_AGENT)")
     v.add_argument("ticker"); v.add_argument("--out", type=Path, default=ROOT / "explorer" / "sec"); v.add_argument("--years", type=int, default=3); v.add_argument("--sheet", type=Path)
+    pf = sub.add_parser("preflight", help="check the contact setting and the plan WITHOUT contacting the SEC")
+    pf.add_argument("--tickers", default=",".join(FIRST_RUN))
     args = ap.parse_args(argv)
+    if args.cmd == "preflight":
+        return run_preflight(args)
     if args.cmd == "sample":
         from . import sample
         print(sample.write())

@@ -144,3 +144,12 @@ details.more > .metrics { margin-top: var(--sp-2); }
 @media (max-width: 640px) { .area-list > div { grid-template-columns: 1fr; } }
 
 @media (max-width: 640px) { #cmpOut table.t th:nth-child(3), #cmpOut table.t td:nth-child(3), #cmpOut table.t th:nth-child(7), #cmpOut table.t td:nth-child(7) { display: none; } }
+
+/* Fundamentals table on phones: latest six fiscal years by default, all ten on request (the data stays in the page). */
+.fd-years { display: none; margin: 0 0 var(--sp-3); }
+@media (max-width: 640px) {
+  .fd-years { display: block; }
+  .fd-table:not(.all) .old { display: none; }
+}
+
+@media (max-width: 760px) { .ex-search input.input { font-size: 16px; } }

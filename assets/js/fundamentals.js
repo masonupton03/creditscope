@@ -63,20 +63,22 @@
   /* ---------- table ---------- */
   function table(c, a, sc) {
     const ys = a.years.slice(-10);
-    const head = '<tr><th class="sticky" scope="col">USD ' + sc.name + ' unless noted</th>' + ys.map(y => {
+    const oc = i => (i < ys.length - 6 ? ' old' : '');
+    const head = '<tr><th class="sticky" scope="col">USD ' + sc.name + ' unless noted</th>' + ys.map((y, i) => {
       const p = ['revenue', 'netIncome', 'assets'].map(k => a.values[k] && a.values[k][y]).find(Boolean);
       const len = p && p.start ? Math.round((Date.UTC(+p.end.slice(0, 4), +p.end.slice(5, 7) - 1, +p.end.slice(8, 10)) - Date.UTC(+p.start.slice(0, 4), +p.start.slice(5, 7) - 1, +p.start.slice(8, 10))) / 864e5) : 0;
-      return '<th class="r" scope="col">FY' + y + '<small>ends ' + (p ? fdate(p.end) : '—') + (len > 370 || (len && len < 360) ? '<br>' + Math.round(len / 7) + '-week year' : '') + '</small></th>';
+      return '<th class="r' + oc(i) + '" scope="col">FY' + y + '<small>ends ' + (p ? fdate(p.end) : '—') + (len > 370 || (len && len < 360) ? '<br>' + Math.round(len / 7) + '-week year' : '') + '</small></th>';
     }).join('') + '</tr>';
     const cell = (k, y, fmt) => {
+      const i = ys.indexOf(y);
       const p = a.values[k] && a.values[k][y];
-      if (!p) return '<td class="r na">—</td>';
+      if (!p) return '<td class="r na' + oc(i) + '">—</td>';
       const txt = fmt(p.val);
       const tipText = p.form + ' filed ' + p.filed + ' · ' + p.tag + (p.start ? ' · period ' + p.start + ' to ' + p.end : ' · at ' + p.end);
-      return '<td class="r">' + (synthetic ? '<span title="Simulated filing reference ' + E(p.accn) + '">' + txt + '</span>'
+      return '<td class="r' + oc(i) + '">' + (synthetic ? '<span title="Simulated filing reference ' + E(p.accn) + '">' + txt + '</span>'
         : '<a href="' + FundCalc.filingUrl(c.cik, p.accn) + '" target="_blank" rel="noopener" title="' + E(tipText) + '">' + txt + '</a>') + '</td>';
     };
-    const calc = (k, y, fmt, note) => { const v = a.ratios[y][k]; return '<td class="r' + (v == null ? ' na' : '') + '"' + (note && a.ratios[y][note] ? ' title="Derived: revenue minus cost of revenue"' : '') + '>' + (v == null ? '—' : fmt(v)) + (note && a.ratios[y][note] && v != null ? '*' : '') + '</td>'; };
+    const calc = (k, y, fmt, note) => { const v = a.ratios[y][k]; return '<td class="r' + (v == null ? ' na' : '') + oc(ys.indexOf(y)) + '"' + (note && a.ratios[y][note] ? ' title="Derived: revenue minus cost of revenue"' : '') + '>' + (v == null ? '—' : fmt(v)) + (note && a.ratios[y][note] && v != null ? '*' : '') + '</td>'; };
     const m = v => usd(v, sc), eps = v => sign(v) + '$' + CS.num(Math.abs(v), 2);
     const rows = [];
     const grp = t => rows.push('<tr class="grp"><td class="sticky" colspan="' + (ys.length + 1) + '">' + t + '</td></tr>');
@@ -90,7 +92,8 @@
     grp('Growth and profitability (derived)'); der('Revenue growth', 'revenueGrowth', v => pct(v)); der('Gross margin', 'grossMargin', v => plain(v)); der('Operating margin', 'operatingMargin', v => plain(v)); der('Net margin', 'netMargin', v => plain(v));
     der('FCF margin', 'fcfMargin', v => plain(v)); der('Return on equity', 'roe', v => plain(v)); der('Return on assets', 'roa', v => plain(v));
     grp('Leverage (derived)'); der('Debt to equity', 'debtToEquity', v => CS.num(v, 2) + '×'); der('Net debt (debt − cash)', 'netDebt', m); der('Liabilities to assets', 'liabilitiesToAssets', v => plain(v));
-    return '<table class="t fd-table"><caption class="sr-only">Annual figures reported to the SEC and ratios derived from them</caption><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>';
+    const more = ys.length > 6 ? '<p class="fd-years"><button type="button" class="btn" id="fdAllYears" aria-expanded="false" aria-controls="fdTable">Show all ' + ys.length + ' years</button><span class="cap"> Showing the latest 6 of ' + ys.length + ' fiscal years.</span></p>' : '';
+    return more + '<table id="fdTable" class="t fd-table"><caption class="sr-only">Annual figures reported to the SEC and ratios derived from them</caption><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>';
   }
 
   /* ---------- page ---------- */
@@ -134,6 +137,8 @@
       audit +
       '<div class="card"><h2>Annual figures</h2><p class="cap">' + (c.synthetic ? 'Simulated figures (no filing links).' : 'Each reported figure links to the SEC filing it came from (hover for form, filing date, tag and period).') + ' Blank means not reported or not meaningful. * = derived.</p><div class="table-wrap">' + table(c, a, sc) + '</div></div>';
     drawCharts(c, a, sc);
+    const yb = $('fdAllYears');
+    if (yb) yb.addEventListener('click', () => { const t = $('fdTable'); const on = t.classList.toggle('all'); yb.setAttribute('aria-expanded', on); yb.textContent = on ? 'Show latest 6 years' : 'Show all ' + a.years.slice(-10).length + ' years'; yb.parentNode.querySelector('.cap').textContent = on ? ' Showing all fiscal years.' : ' Showing the latest 6 of ' + a.years.slice(-10).length + ' fiscal years.'; });
     if (avail) XLinks.render($('xlinks'), c.ticker, { price: avail.priceSet.has(c.ticker), fund: true, fundSynthetic: avail.fundSynthetic }, 'fundamentals');
     document.title = 'CreditScope · ' + c.ticker + ' fundamentals';
   }
