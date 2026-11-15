@@ -1,7 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 2 2">
-<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#142034"/><stop offset="1" stop-color="#060a10"/></linearGradient></defs>
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2129"/><stop offset="1" stop-color="#0b0d10"/></linearGradient></defs>
 <rect x="-0.92" y="-0.92" width="1.84" height="1.84" rx="0.34" fill="url(#g)"/>
-<circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.09"/>
-<g stroke="#ffb020" stroke-width="0.056" stroke-linecap="round"><path d="M0.47 0H0.76M-0.47 0H-0.76M0 0.47V0.76M0 -0.47V-0.76"/></g>
-<polyline points="-0.34,0.24 -0.12,0 0.04,0.14 0.3,-0.28" fill="none" stroke="#2fd18b" stroke-width="0.1" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="0.3" cy="-0.28" r="0.085" fill="#2fd18b"/></svg>
+<polyline points="-0.42,0.34 -0.14,0.04 0.08,0.2 0.4,-0.34" fill="none" stroke="#3987e5" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="0.4" cy="-0.34" r="0.11" fill="#3987e5"/></svg>

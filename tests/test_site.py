@@ -18,20 +18,34 @@ def read(name):
 
 
 def nav(html):
-    block = re.search(r"<nav class=\"nav( five)?\".*?</nav>", html, re.S).group(0)
-    block = block.replace('<nav class="nav five"', '<nav class="nav"')
-    block = re.sub(r'\s*<a class="link( active)?" href="portfolio.html"[^>]*>Portfolio</a>', '', block)   # the Explorer/Portfolio pages add one link
-    return block.replace('class="link active"', 'class="link"').replace(' aria-current="page"', '')
+    """The whole navigation block (top bar and section tabs) with the current-page markers removed."""
+    block = re.search(r"<!-- nav:start -->.*?<!-- nav:end -->", html, re.S).group(0)
+    block = re.sub(r' aria-current="(page|true)"', "", block)
+    return block.replace('class="link active"', 'class="link"')
 
 
-def test_three_pages_share_one_navigation_bar():
-    navs = [nav(read(p)) for p in PAGES]
+REQUIRED = ["index.html", "browse.html", "trends.html"]
+
+
+def test_three_required_pages_share_one_navigation_bar():
+    """Assignment: all three pages share one navigation bar. Identical markup apart from which item is current."""
+    navs = [nav(read(p)) for p in REQUIRED]
     assert navs[0] == navs[1] == navs[2]
-    for page, html in ((p, read(p)) for p in PAGES):
-        assert html.count('class="link active"') == 1
-        assert f'<a class="link active" href="{page}" aria-current="page">' in html
-    for target in PAGES:
-        assert f'href="{target}"' in navs[0]
+    for page in REQUIRED:
+        html = read(page)
+        assert html.count('class="link active"') == 1 and '<a class="link active" href="index.html" aria-current="true">Markets</a>' in html
+        assert f'<a href="{page}" aria-current="page">' in html                     # its own tab is the current page
+    for target in REQUIRED:
+        assert f'<a href="{target}"' in navs[0]                                      # Today, Browse and Trends are all reachable from every one of them
+
+
+def test_navigation_is_organised_around_markets_research_and_portfolio():
+    html = read("index.html")
+    top = re.search(r'<div class="areas">(.*?)</div>', html, re.S).group(1)
+    assert re.findall(r">([^<]+)</a>", top) == ["Markets", "Research", "Portfolio"]
+    assert 'href="platform.html"' in html and ">About<" in html                       # About stays reachable but is not a major item
+    for page, area in (("explorer.html", "Research"), ("fundamentals.html", "Research"), ("compare.html", "Research"), ("portfolio.html", "Portfolio")):
+        assert re.search(r'<a class="link active" href="[^"]+" aria-current="(page|true)">%s</a>' % area, read(page)), page
 
 
 def test_pages_share_fonts_colors_and_head():

@@ -19,10 +19,10 @@
     const list = a => (a.length ? a.join(', ') : 'none');
     const items = [
       ['Last run (UTC)', status.run_time.slice(11, 16), CS.date(status.run_time.slice(0, 10)) + ' · ' + CS.ago(status.run_time)],
-      ['Sources OK', (total - bad) + '/' + total, bad ? bad + ' failed today' : 'all sources healthy'],
-      ['ETFs tracked', CS.int(status.items), 'in the latest run'],
-      ['New today', CS.int(status.new_today.length), list(status.new_today)],
-      ['Gone today', CS.int(status.gone_today.length), list(status.gone_today)],
+      ['Sources OK', (total - bad) + '/' + total, bad ? bad + ' failed today' : ''],
+      ['ETFs tracked', CS.int(status.items), ''],
+      ['New today', CS.int(status.new_today.length), status.new_today.length ? list(status.new_today) : ''],
+      ['Gone today', CS.int(status.gone_today.length), status.gone_today.length ? list(status.gone_today) : ''],
       ['Days collected', CS.int(status.days_with_success), 'since ' + CS.date(status.first_run_date)]
     ];
     $('tiles').innerHTML = items.map(t => '<div class="tile"><span class="v' + (t[0] === 'Sources OK' && bad ? ' down' : '') + '">' + CS.esc(t[1]) + '</span><span class="l">' + t[0] + '</span><span class="s">' + CS.esc(t[2]) + '</span></div>').join('');
@@ -35,21 +35,23 @@
     if (!cmp.now.size) {
       lead = 'No ETF values were collected in the latest run. See the source status below.';
     } else if (pd && pd < run) {
-      lead = 'The ' + CS.date(run) + ' run (UTC) collected ' + cmp.now.size + ' ETFs. Markets were closed, so the source repeated the ' + CS.weekday(pd) + ' ' + CS.date(pd) + ' quotes: unchanged values below are carried over, not new market activity.';
+      lead = 'Quotes from the ' + CS.weekday(pd) + ' ' + CS.date(pd) + ' session. Markets were closed on the run date, so unchanged values are carried over, not new market activity.';
     } else {
-      lead = 'The ' + CS.date(run) + ' run (UTC) collected ' + cmp.now.size + ' ETFs with quotes from the ' + CS.weekday(pd) + ' ' + CS.date(pd) + ' trading session.';
+      lead = 'Quotes from the ' + CS.weekday(pd) + ' ' + CS.date(pd) + ' trading session.';
     }
     $('heroLead').textContent = lead;
+    const bad = status.sources.some(s => !s.ok);
+    $('phStatus').innerHTML = '<span class="dot" style="color:var(' + (bad ? '--down' : '--up') + ')"></span>Updated ' + CS.esc(CS.ago(status.run_time)) + ' · ' + CS.esc(CS.runTime(status.run_time));
   }
 
   function movers(cmp) {
     const el = $('movers'); const cap = $('movCap');
     if (!cmp.prev) {
-      cap.textContent = 'Compared with the previous run.';
+      cap.textContent = '';
       el.innerHTML = '<p class="empty">This is the first run, so there is nothing to compare with yet. Moves will appear after the next daily run.</p>';
       return;
     }
-    cap.textContent = 'Top 5 by absolute % change in price, ' + CS.date(cmp.prev, true) + ' → ' + CS.date(cmp.latest, true) + ' (the previous run to the latest run).';
+    cap.textContent = 'Top 5 by absolute % change in price, ' + CS.date(cmp.prev, true) + ' → ' + CS.date(cmp.latest, true) + '.';
     if (!cmp.movers.length) {
       el.innerHTML = '<p class="empty">No ETF changed price since the previous run. ' +
         (cmp.newSession ? '' : 'The source still reports the ' + CS.date(cmp.latestPriceDate) + ' trading session, so these are carried-over quotes, not new market activity.') + '</p>';
@@ -67,7 +69,7 @@
 
   function sources(status) {
     const ok = status.sources.filter(s => s.ok).length;
-    $('srcCap').textContent = ok + ' of ' + status.sources.length + ' sources succeeded in the latest run (run time ' + CS.runTime(status.run_time) + '). One source = one ETF quote request to Nasdaq.';
+    $('srcCap').textContent = ok + ' of ' + status.sources.length + ' sources succeeded (one Nasdaq quote request per ETF).';
     $('sources').innerHTML = status.sources.map(s => '<div class="src ' + (s.ok ? 'ok' : 'fail') + '" title="' + CS.esc(s.name) + ': ' + (s.ok ? 'ok, ' + s.count + ' row' : 'failed') + '"><span class="dot"></span>' +
       CS.esc(s.name.replace(/^nasdaq-/, '')) + '<small>' + (s.ok ? s.count + ' row' + (s.count === 1 ? '' : 's') : 'failed') + '</small></div>').join('');
   }
@@ -83,8 +85,8 @@
   function table(cmp, byItem) {
     const rows = Array.from(cmp.now.values()).sort((a, b) => (a.asset_class === b.asset_class ? 0 : a.asset_class === 'Stock' ? -1 : 1) || (a.item_id < b.item_id ? -1 : 1));
     $('tblCap').textContent = cmp.prev
-      ? 'Change compares each price with the previous run (' + CS.date(cmp.prev) + '). The trend line shows the price at each trading session collected so far.'
-      : 'First run: change columns fill in after the next run. The trend line shows the price at each trading session collected so far.';
+      ? 'Change compares each price with the previous run (' + CS.date(cmp.prev) + '). ↺ marks a quote carried over because markets were closed.'
+      : 'First run: change columns fill in after the next run. ↺ marks a quote carried over because markets were closed.';
     $('tbl').querySelector('tbody').innerHTML = rows.map(r => {
       const c = cmp.changes.get(r.item_id); const dir = CS.dir(c.pct);
       const pts = (byItem.get(r.item_id) || []).filter(o => o.price != null).map(o => o.price).slice(-30);
@@ -94,10 +96,10 @@
         '<td class="ht"><span class="cls ' + r.asset_class.toLowerCase() + '">' + CS.esc(r.asset_class) + '</span></td>' +
         '<td class="r">' + CS.money(r.price) + '</td>' +
         '<td class="r hs ' + dir + '">' + (c.diff == null ? '—' : CS.signed(c.diff)) + '</td>' +
-        '<td class="r"><span class="badge ' + dir + '">' + (c.pct == null ? '—' : CS.pct(c.pct)) + '</span></td>' +
+        '<td class="r">' + (c.pct == null ? '<span class="muted">—</span>' : '<span class="badge ' + dir + '">' + CS.pct(c.pct) + '</span>') + '</td>' +
         '<td class="r hm">' + CS.int(r.volume) + '</td>' +
         '<td class="hv">' + sparkline(pts, dir) + '</td>' +
-        '<td class="ht">' + CS.esc(CS.date(r.price_date, true)) + (carried ? ' <span class="chip" title="Markets were closed: quotes carried over from this session">carried over</span>' : '') + '</td></tr>';
+        '<td class="ht">' + CS.esc(CS.date(r.price_date, true)) + (carried ? ' <span class="muted" title="Markets were closed: quote carried over from this session" aria-label="carried over">↺</span>' : '') + '</td></tr>';
     }).join('');
   }
 

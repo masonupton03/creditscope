@@ -45,19 +45,19 @@
   const legend = { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } };
 
   function drawCharts(c, a, sc) {
-    Chart.defaults.color = color('--text-2'); Chart.defaults.font.family = color('--font'); Chart.defaults.borderColor = color('--grid');
+    CS.chartDefaults();
     const ys = a.years, labels = ys.map(y => 'FY' + y);
     const V = (k, y) => (a.values[k] && a.values[k][y] ? a.values[k][y].val : null);
     const series = (k, f) => ys.map(y => { const v = f ? f(y) : V(k, y); return v == null ? null : v / sc.div; });
     const bar = (label, data, c1) => ({ label, data, backgroundColor: color(c1), borderWidth: 0 });
     const line = (label, data, c1) => ({ label, data, borderColor: color(c1), backgroundColor: color(c1), borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.1, spanGaps: false });
     const usdTip = tip({ label: x => ' ' + x.dataset.label + ': ' + (x.parsed.y == null ? 'not reported' : sign(x.parsed.y) + '$' + CS.num(Math.abs(x.parsed.y), 2) + ' ' + sc.name) });
-    mk('chRev', { type: 'bar', data: { labels, datasets: [bar('Revenue', series('revenue'), '--stock'), bar('Net income', series('netIncome'), '--up')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
-    const pctTip = tip({ label: x => ' ' + x.dataset.label + ': ' + (x.parsed.y == null ? 'not available' : CS.num(x.parsed.y, 1) + '%') });
+    mk('chRev', { type: 'bar', data: { labels, datasets: [bar('Revenue', series('revenue'), '--s1'), bar('Net income', series('netIncome'), '--s3')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
+    const pctTip = tip({ label: x => ' ' + x.dataset.label + ': ' + (x.parsed.y == null ? 'not available' : CS.dec(x.parsed.y, 1) + '%') });
     const r = (k) => ys.map(y => (a.ratios[y][k] == null ? null : a.ratios[y][k] * 100));
-    mk('chMargin', { type: 'line', data: { labels, datasets: [line('Gross margin', r('grossMargin'), '--stock'), line('Operating margin', r('operatingMargin'), '--accent'), line('Net margin', r('netMargin'), '--up'), line('Free-cash-flow margin', r('fcfMargin'), '--bond')] }, options: Object.assign(common(), { scales: scales('% of revenue'), plugins: { legend, tooltip: pctTip } }) });
-    mk('chBal', { type: 'bar', data: { labels, datasets: [bar('Total assets', series('assets'), '--stock'), bar('Total liabilities', series('liabilities'), '--down'), bar('Debt', series('debt'), '--accent'), bar('Cash', series('cash'), '--up')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
-    mk('chCash', { type: 'bar', data: { labels, datasets: [bar('Operating cash flow', series('operatingCashFlow'), '--up'), bar('Capital expenditure', series('capex'), '--down'), bar('Free cash flow', series(null, y => a.ratios[y].fcf), '--accent')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
+    mk('chMargin', { type: 'line', data: { labels, datasets: [line('Gross margin', r('grossMargin'), '--s1'), line('Operating margin', r('operatingMargin'), '--s2'), line('Net margin', r('netMargin'), '--s3'), line('Free-cash-flow margin', r('fcfMargin'), '--s4')] }, options: Object.assign(common(), { scales: scales('% of revenue'), plugins: { legend, tooltip: pctTip } }) });
+    mk('chBal', { type: 'bar', data: { labels, datasets: [bar('Total assets', series('assets'), '--s1'), bar('Total liabilities', series('liabilities'), '--s2'), bar('Debt', series('debt'), '--s4'), bar('Cash', series('cash'), '--s3')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
+    mk('chCash', { type: 'bar', data: { labels, datasets: [bar('Operating cash flow', series('operatingCashFlow'), '--s3'), bar('Capital expenditure', series('capex'), '--s2'), bar('Free cash flow', series(null, y => a.ratios[y].fcf), '--s1')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
   }
 
   /* ---------- table ---------- */
@@ -100,7 +100,6 @@
     const a = FundCalc.analyze(c), sc = scaleFor(c), fr = FundCalc.freshness(c, today());
     const L = a.latestFiscalYear, r = L != null ? a.ratios[L] : {}, V = (k, y) => (a.values[k] && a.values[k][y] ? a.values[k][y].val : null);
     const notes = [];
-    if (c.synthetic) notes.push('<div class="banner synth"><span><b>Simulated company.</b> Fictional, generated numbers (not SEC data).</span></div>');
     if (fr.stale && !c.synthetic) notes.push('<div class="banner warn"><span><b>This may be out of date.</b> The latest annual report here was filed ' + fdate(fr.latestFiled) + ' (' + CS.int(fr.daysSinceFiled / 30.4) + ' months before today); a newer one may exist.</span></div>');
     a.warnings.forEach(w => notes.push('<div class="banner warn"><span>' + E(w.message) + '</span></div>'));
     const cov = c.coverage || { found: {}, missing: [] }, checks = c.checks || [];
@@ -113,18 +112,20 @@
     $('detail').innerHTML =
       '<div class="ex-head"><h2><span class="tk">' + E(c.ticker) + '</span><span class="nm">' + E(c.name) + '</span></h2></div>' +
       '<div class="xlinks" id="xlinks" hidden></div>' +
-      '<p class="cap" id="fresh">Latest annual report: fiscal year ' + (L == null ? '—' : L) + ', period ended <b>' + fdate(c.latestPeriodEnd) + '</b>, filed <b>' + fdate(c.latestFiled) + '</b> · data compiled ' + fdate((c.generated || '').slice(0, 10)) + ' · amounts in <b>USD ' + sc.name + '</b> except per-share · source: ' + E(c.source) + cikLink + '</p>' +
+      '<p class="cap" id="fresh">FY' + (L == null ? '—' : L) + ' ended <b>' + fdate(c.latestPeriodEnd) + '</b> · filed <b>' + fdate(c.latestFiled) + '</b> · compiled ' + fdate((c.generated || '').slice(0, 10)) + ' · USD ' + sc.name + ' except per share · ' + (c.synthetic ? 'simulated data' : 'SEC EDGAR') + cikLink + '</p>' +
       '<div class="notes">' + notes.join('') + '</div>' +
-      '<div class="metrics">' +
-        tile('Revenue · FY' + L, usd(V('revenue', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), r.revenueGrowth == null ? 'Growth needs the previous year' : pct(r.revenueGrowth) + ' vs previous year', dir(r.revenueGrowth)) +
-        tile('Revenue CAGR', pct(a.cagr[3]), '3 years' + (a.cagr[5] != null ? ' · 5 years ' + pct(a.cagr[5]) : ' · 5 years not available'), dir(a.cagr[3])) +
-        tile('Net margin', plain(r.netMargin), 'Net income ' + usd(V('netIncome', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), dir(r.netMargin)) +
+      '<div class="metrics" aria-label="Key figures">' +
+        tile('Revenue · FY' + L, usd(V('revenue', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), r.revenueGrowth == null ? 'Growth needs the previous year' : pct(r.revenueGrowth) + ' year over year', dir(r.revenueGrowth)) +
         tile('Operating margin', plain(r.operatingMargin), 'Gross margin ' + plain(r.grossMargin)) +
-        tile('Return on equity', plain(r.roe), r.roe == null ? 'Blank: needs positive average equity' : 'Net income ÷ average equity') +
-        tile('Debt to equity', r.debtToEquity == null ? '—' : CS.num(r.debtToEquity, 2) + '×', r.debtToEquity == null ? 'Blank: debt or positive equity missing' : 'Net debt ' + usd(r.netDebt, sc) + (sc.div === 1e9 ? 'B' : 'M')) +
+        tile('Net margin', plain(r.netMargin), 'Net income ' + usd(V('netIncome', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), dir(r.netMargin)) +
         tile('Free cash flow', r.fcf == null ? '—' : usd(r.fcf, sc) + (sc.div === 1e9 ? 'B' : 'M'), r.fcf == null ? 'Blank: needs operating cash flow and capex' : 'FCF margin ' + plain(r.fcfMargin), dir(r.fcf)) +
       '</div>' +
-      '<div class="charts">' +
+      '<details class="more"><summary>More ratios</summary><div class="metrics" aria-label="More ratios">' +
+        tile('Revenue CAGR', pct(a.cagr[3]), '3 years' + (a.cagr[5] != null ? ' · 5 years ' + pct(a.cagr[5]) : ' · 5 years not available'), dir(a.cagr[3])) +
+        tile('Return on equity', plain(r.roe), r.roe == null ? 'Blank: needs positive average equity' : 'Net income ÷ average equity') +
+        tile('Debt to equity', r.debtToEquity == null ? '—' : CS.num(r.debtToEquity, 2) + '×', r.debtToEquity == null ? 'Blank: debt or positive equity missing' : 'Net debt ' + usd(r.netDebt, sc) + (sc.div === 1e9 ? 'B' : 'M')) +
+      '</div></details>' +
+      '<div class="charts two">' +
         '<div class="card"><h3>Revenue and net income</h3><p class="cap">USD ' + sc.name + ' by fiscal year.</p><div class="chart-box short"><canvas id="chRev" role="img" aria-label="Revenue and net income by fiscal year"></canvas></div></div>' +
         '<div class="card"><h3>Margins</h3><p class="cap">Share of revenue; a gap in a line means the figure was not reported or not meaningful.</p><div class="chart-box short"><canvas id="chMargin" role="img" aria-label="Margins by fiscal year"></canvas></div></div>' +
         '<div class="card"><h3>Balance sheet</h3><p class="cap">Year-end assets, liabilities, debt and cash.</p><div class="chart-box short"><canvas id="chBal" role="img" aria-label="Balance sheet items by fiscal year"></canvas></div></div>' +

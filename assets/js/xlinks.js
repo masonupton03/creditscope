@@ -20,7 +20,7 @@
     const items = build(sym, avail, current);
     el.innerHTML = items.length ? '<span class="lab">Open ' + esc(sym) + ' in</span>' + items.map(i => i.enabled
       ? '<a href="' + esc(i.href) + '">' + esc(i.label) + '</a>'
-      : '<span class="off" role="link" aria-disabled="true" title="' + esc(i.reason) + '" tabindex="0">' + esc(i.label) + '<span class="sr-only"> unavailable: ' + esc(i.reason) + '</span></span>').join('') : '';
+      : '<span class="off" role="link" aria-disabled="true" title="' + esc(i.reason) + '" tabindex="0">' + esc(i.label) + '<span class="na" aria-hidden="true">n/a</span><span class="sr-only"> unavailable: ' + esc(i.reason) + '</span></span>').join('') : '';
     el.hidden = !items.length;
   }
   /** Which tickers each page can show. Failures degrade to "unknown = unavailable"; they never throw. */

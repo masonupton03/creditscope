@@ -28,7 +28,7 @@ const grab = p => p.evaluate(() => {
   document.querySelectorAll('*').forEach(e => { for (const a of e.attributes) if (skip.indexOf(a.name) < 0) attrs.push(a.name + '=' + a.value); if (e.value && e.tagName !== 'OPTION') attrs.push('value=' + e.value); });
   const charts = [];
   document.querySelectorAll('canvas').forEach(c => { const ch = window.Chart && window.Chart.getChart(c); if (ch) charts.push(JSON.stringify({ labels: ch.data.labels, sets: ch.data.datasets.map(d => ({ label: d.label, data: d.data })) })); });
-  return { text: document.body.innerText, attrs: attrs.join('\n'), charts: charts.join('\n'), title: document.title, url: location.href };
+  return { text: document.body.innerText, fullText: document.body.textContent, attrs: attrs.join('\n'), charts: charts.join('\n'), title: document.title, url: location.href };
 });
 
 (async () => {
@@ -57,14 +57,14 @@ const grab = p => p.evaluate(() => {
 
   await open('hide');
   const h = await grab(p);
-  const hay = { 'visible text': h.text, 'attributes': h.attrs, 'chart data': h.charts, 'title': h.title, 'address': h.url };
+  const hay = { 'visible text': h.text, 'full text incl. collapsed panels': h.fullText, 'attributes': h.attrs, 'chart data': h.charts, 'title': h.title, 'address': h.url };
   const leaks = [];
   for (const where of Object.keys(hay)) for (const t of sensitive) if (found(hay[where], t)) leaks.push(where + ': "' + t + '"');
   assert(!/\$\s?\d/.test(h.text), 'a dollar figure is visible');
   assert(!leaks.length, 'LEAKS in the hidden view:\n' + leaks.join('\n'));
   assert(/Holding A/.test(h.text), 'neutral labels should appear');
   assert(await p.isHidden('#txForm') && (await p.$$('#txBody .rm')).length === 0, 'editing must be off while hidden');
-  const stats = (await p.textContent('#perfTiles')).replace(/\s+/g, ' ');
+  const stats = ((await p.textContent('#perfTiles')) + ' ' + (await p.textContent('#perfMore'))).replace(/\s+/g, ' ');
   assert(/Volatility\s*[\d.]+%/.test(stats) && /Beta vs SPY\s*[\d.]+/.test(stats) && /Max drawdown/.test(stats), 'risk statistics must still be shown: ' + stats.slice(0, 160));
   console.log('hidden view: visible text, attributes, chart data, title and address are clean; risk statistics shown:', stats.slice(0, 110));
 

@@ -1,5 +1,6 @@
 """Structural quality of every HTML page: accessibility basics, navigation, links and assets that must exist."""
 import re
+import sys
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -95,20 +96,23 @@ def test_every_page_has_the_basics(pages):
     assert len(titles) == len(set(titles)), "page titles must be unique"
 
 
-def test_research_pages_have_a_skip_link_that_lands_somewhere_and_a_subnav(pages):
-    for n in RESEARCH:
+def test_pages_use_the_generated_navigation_and_it_is_in_sync():
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import sync_nav
+    for page in sync_nav.PAGES:
+        assert sync_nav.render(page) in (ROOT / page).read_text(encoding="utf-8"), f"{page}: navigation differs from scripts/sync_nav.py (run it)"
+
+
+def test_every_page_has_a_skip_link_that_lands_somewhere_and_section_tabs_where_they_apply(pages):
+    for n in PAGES:
         text = (ROOT / n).read_text(encoding="utf-8")
         m = re.search(r'<a class="skip" href="#([\w-]+)"', text)
         assert m and m.group(1) in pages[n].ids, f"{n}: skip link target must exist"
-        assert 'aria-label="Research tools"' in text
-        assert len(re.findall(r'<a href="[\w.]+\.html" aria-current="page"', re.search(r'<nav class="subnav".*?</nav>', text, re.S).group(0))) == 1, n
-        assert re.search(r'<a href="%s" aria-current="page"' % n, text), f"{n}: its own sub-navigation link is current"
-
-
-def test_required_pages_get_a_skip_link_but_not_the_research_navigation(pages):
-    for n in ("index.html", "browse.html", "trends.html"):
-        text = (ROOT / n).read_text(encoding="utf-8")
-        assert "subnav" not in text and 'class="skip" href="#main"' in text and "main" in pages[n].ids, n
+        tabs = re.search(r'<nav class="subnav".*?</nav>', text, re.S)
+        if n in ("portfolio.html", "platform.html"):
+            assert tabs is None, n
+        else:
+            assert tabs and len(re.findall(r'aria-current="page"', tabs.group(0))) == 1 and f'<a href="{n}" aria-current="page"' in tabs.group(0), n
 
 
 def test_all_controls_have_accessible_names(pages):
@@ -150,4 +154,4 @@ def test_service_worker_precaches_every_page_and_script_the_pages_use(pages):
         for a in p.assets:
             if a.startswith(("assets/", "explorer/")):
                 assert f"'{a}'" in shell, f"{a} (used by {n}) missing from the offline shell"
-    assert "creditscope-v7" in sw
+    assert "creditscope-v8" in sw

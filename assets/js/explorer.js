@@ -118,56 +118,56 @@
   }
 
   /* ---------- detail ---------- */
-  const tile = (label, value, sub, cls, basis) => '<div class="metric"><span class="l">' + label + '</span><span class="v ' + (cls || '') + '">' + value + '</span><span class="s">' + sub + '</span>' + (basis ? '<span class="basis ' + basis + '">' + (basis === 'total' ? 'total return' : 'price return') + '</span>' : '') + '</div>';
+  const tile = (label, value, sub, cls, basis) => '<div class="metric"><span class="l">' + label + '</span><span class="v ' + (cls || '') + '">' + value + '</span><span class="s">' + sub + '</span></div>';
 
   function metricTiles(sum, isBench) {
     const b = sum.basis; const dd = sum.maxDrawdown || {};
-    const t = [];
-    t.push(tile('Return · ' + state.period, pct(sum.cumulativeReturn), sum.basisLabel + (sum.truncated ? '<br>from ' + CS.date(sum.startDate) : ''), dir(sum.cumulativeReturn), b));
-    t.push(tile('Annualized return', pct(sum.annualizedReturn), sum.annualizedReturn == null ? 'Shown for windows of one year or more' : 'Compound annual growth rate', dir(sum.annualizedReturn), sum.annualizedReturn == null ? null : b));
-    t.push(tile('Volatility', plain(sum.volatility), sum.volatility == null ? 'Needs at least 20 daily returns' : 'Annualized std. deviation of daily returns', '', sum.volatility == null ? null : b));
-    t.push(tile('Max drawdown', dd.depth == null ? '—' : plain(dd.depth), dd.peakDate ? 'Peak ' + CS.date(dd.peakDate) + ' → trough ' + CS.date(dd.troughDate) + (dd.recoveryDate ? '<br>recovered ' + CS.date(dd.recoveryDate) : '<br>not yet recovered') : (dd.depth === 0 ? 'No decline in this window' : 'Not enough data'), dd.depth < 0 ? 'down' : '', dd.depth == null ? null : b));
+    const t = [], more = [];
+    t.push(tile('Return · ' + state.period, pct(sum.cumulativeReturn), (sum.basis === 'total' ? 'Total return' : 'Price return') + (sum.truncated ? ' · from ' + CS.date(sum.startDate) : ''), dir(sum.cumulativeReturn), b));
+    t.push(tile('Annualized return', pct(sum.annualizedReturn), sum.annualizedReturn == null ? 'For windows of a year or more' : 'Compound annual rate', dir(sum.annualizedReturn), sum.annualizedReturn == null ? null : b));
+    t.push(tile('Volatility', plain(sum.volatility), sum.volatility == null ? 'Needs 20 daily returns' : 'Annualized', '', sum.volatility == null ? null : b));
+    t.push(tile('Max drawdown', dd.depth == null ? '—' : plain(dd.depth), dd.peakDate ? CS.date(dd.peakDate, true) + ' → ' + CS.date(dd.troughDate, true) + (dd.recoveryDate ? ' · recovered' : ' · not recovered') : (dd.depth === 0 ? 'No decline in this window' : 'Not enough data'), dd.depth < 0 ? 'down' : '', dd.depth == null ? null : b));
     const v = sum.volume;
-    t.push(tile('Avg daily volume', v ? CS.compact(v.avg) : '—', v ? 'Avg dollar volume $' + CS.compact(v.avgDollar) + ' · shares are unadjusted' : 'Volume not available'));
-    t.push(tile('Dividend yield (TTM)', sum.dividends ? plain(sum.dividends.yieldTTM, 2) : '—', sum.dividends ? 'Trailing 12 months, on the latest close' : 'Dividend history is unavailable'));
+    more.push(tile('Avg daily volume', v ? CS.compact(v.avg) : '—', v ? 'Avg dollar volume $' + CS.compact(v.avgDollar) + ' · shares are unadjusted' : 'Volume not available'));
+    more.push(tile('Dividend yield (TTM)', sum.dividends ? plain(sum.dividends.yieldTTM, 2) : '—', sum.dividends ? 'Trailing 12 months, on the latest close' : 'Dividend history is unavailable'));
     if (!isBench && sum.compare && sum.compare.series) {
       const c = sum.compare;
-      t.push(tile('vs ' + BENCH + ' · excess return', c.excessReturn == null ? '—' : (c.excessReturn >= 0 ? '+' : '−') + CS.num(Math.abs(c.excessReturn) * 100, 2) + ' pts', 'This security ' + pct(c.cumulativeReturnA) + ' vs ' + BENCH + ' ' + pct(c.cumulativeReturnB), dir(c.excessReturn), c.basis));
-      t.push(tile('Beta vs ' + BENCH, c.beta == null ? '—' : CS.num(c.beta, 2), c.beta == null ? 'Needs at least 60 overlapping daily returns' : 'Sensitivity to ' + BENCH + ' moves (' + c.nReturns + ' daily returns)'));
-      t.push(tile('Correlation vs ' + BENCH, c.correlation == null ? '—' : CS.num(c.correlation, 2), c.correlation == null ? 'Needs at least 60 overlapping daily returns' : 'How closely the daily returns move together'));
+      t.push(tile('vs ' + BENCH + ' · excess return', c.excessReturn == null ? '—' : (c.excessReturn >= 0 ? '+' : '−') + CS.num(Math.abs(c.excessReturn) * 100, 2) + ' pts', pct(c.cumulativeReturnA) + ' vs ' + BENCH + ' ' + pct(c.cumulativeReturnB), dir(c.excessReturn), c.basis));
+      more.push(tile('Beta vs ' + BENCH, CS.dec(c.beta, 2), c.beta == null ? 'Needs at least 60 overlapping daily returns' : 'Sensitivity to ' + BENCH + ' moves (' + c.nReturns + ' daily returns)'));
+      more.push(tile('Correlation vs ' + BENCH, CS.dec(c.correlation, 2), c.correlation == null ? 'Needs at least 60 overlapping daily returns' : 'How closely the daily returns move together'));
     }
-    return t.join('');
+    return { primary: t.join(''), more: more.join('') };
   }
 
   const color = n => CS.cssVar(n);
   function mkChart(id, cfg) { if (charts[id]) charts[id].destroy(); const el = $(id); if (el) charts[id] = new Chart(el, cfg); }
   const common = () => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 } });
   const tip = cb => ({ backgroundColor: color('--surface-3'), titleColor: color('--text'), bodyColor: color('--text-2'), borderColor: color('--border'), borderWidth: 1, padding: 10, callbacks: cb });
-  const xAxis = () => ({ grid: { display: false }, ticks: { maxTicksLimit: window.innerWidth < 560 ? 4 : 7, autoSkip: true, maxRotation: 0 } });
+  const xAxis = () => ({ grid: { display: false }, ticks: { maxTicksLimit: window.innerWidth < 560 ? 3 : 6, autoSkip: true, maxRotation: 0 } });
 
   function drawCharts(ser, sum, isBench, spy) {
-    Chart.defaults.color = color('--text-2'); Chart.defaults.font.family = color('--font'); Chart.defaults.borderColor = color('--grid');
+    CS.chartDefaults();
     const cd = Finance.chartData(ser, state.period);
     const labels = cd.dates.map(d => CS.date(d, cd.dates.length > 260 ? false : true));
     const cmp = (!isBench && state.compare && sum.compare && sum.compare.series) ? sum.compare : null;
     let datasets, yTitle, fmt, titleText;
     if (cmp) {
       const L = cmp.series.dates.map(d => CS.date(d, cmp.series.dates.length > 260 ? false : true));
-      datasets = [{ label: ser.symbol, data: cmp.series.a, borderColor: color('--accent'), backgroundColor: color('--accent') }, { label: BENCH, data: cmp.series.b, borderColor: color('--stock'), backgroundColor: color('--stock') }];
+      datasets = [{ label: ser.symbol, data: cmp.series.a, borderColor: color('--s1'), backgroundColor: color('--s1') }, { label: BENCH, data: cmp.series.b, borderColor: color('--s-bench'), backgroundColor: color('--s-bench') }];
       yTitle = 'Growth of 100'; fmt = v => CS.num(v, 2); titleText = 'Growth of 100 · ' + cmp.basisLabel;
       mkChart('chMain', { type: 'line', data: { labels: L, datasets: datasets.map(d => Object.assign({ borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.1 }, d)) }, options: Object.assign(common(), { scales: { x: xAxis(), y: { grid: { color: color('--grid') }, title: { display: true, text: yTitle } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: c => ' ' + c.dataset.label + ': ' + fmt(c.parsed.y) }) } }) });
     } else if (state.mode === 'price') {
       titleText = 'Closing price (USD, split-adjusted, excludes dividends)';
-      mkChart('chMain', { type: 'line', data: { labels, datasets: [{ label: ser.symbol + ' close', data: cd.close, borderColor: color('--accent'), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.1 }] }, options: Object.assign(common(), { scales: { x: xAxis(), y: { grid: { color: color('--grid') }, title: { display: true, text: 'USD' } } }, plugins: { legend: { display: false }, tooltip: tip({ label: c => ' ' + CS.money(c.parsed.y) }) } }) });
+      mkChart('chMain', { type: 'line', data: { labels, datasets: [{ label: ser.symbol + ' close', data: cd.close, borderColor: color('--s1'), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.1 }] }, options: Object.assign(common(), { scales: { x: xAxis(), y: { grid: { color: color('--grid') }, title: { display: true, text: 'USD' } } }, plugins: { legend: { display: false }, tooltip: tip({ label: c => ' ' + CS.money(c.parsed.y) }) } }) });
     } else {
       titleText = 'Growth of 100 · ' + sum.basisLabel;
-      const ds = [{ label: ser.symbol + ' (' + (cd.basis === 'total' ? 'total return' : 'price return') + ')', data: cd.growth, borderColor: color('--accent'), borderWidth: 2 }];
-      if (cd.basis === 'total') ds.push({ label: ser.symbol + ' (price only)', data: cd.priceGrowth, borderColor: color('--muted'), borderWidth: 1.5, borderDash: [5, 4] });
+      const ds = [{ label: ser.symbol + ' (' + (cd.basis === 'total' ? 'total return' : 'price return') + ')', data: cd.growth, borderColor: color('--s1'), borderWidth: 2 }];
+      if (cd.basis === 'total') ds.push({ label: ser.symbol + ' (price only)', data: cd.priceGrowth, borderColor: color('--s-bench'), borderWidth: 1.5, borderDash: [5, 4] });
       mkChart('chMain', { type: 'line', data: { labels, datasets: ds.map(d => Object.assign({ pointRadius: 0, pointHoverRadius: 4, tension: 0.1 }, d)) }, options: Object.assign(common(), { scales: { x: xAxis(), y: { grid: { color: color('--grid') }, title: { display: true, text: 'Growth of 100' } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: c => ' ' + c.dataset.label + ': ' + CS.num(c.parsed.y, 2) }) } }) });
     }
     $('mainTitle').textContent = titleText;
     mkChart('chDD', { type: 'line', data: { labels, datasets: [{ label: 'Drawdown', data: cd.drawdown, borderColor: color('--down'), backgroundColor: color('--down-soft'), fill: true, borderWidth: 1.5, pointRadius: 0, tension: 0 }] }, options: Object.assign(common(), { scales: { x: xAxis(), y: { grid: { color: color('--grid') }, max: 0, ticks: { callback: v => Math.round(v * 10) / 10 + '%' } } }, plugins: { legend: { display: false }, tooltip: tip({ label: c => ' ' + CS.num(c.parsed.y, 2) + '% below peak' }) } }) });
-    if (cd.volume) mkChart('chVol', { type: 'bar', data: { labels, datasets: [{ label: 'Volume', data: cd.volume, backgroundColor: color('--stock'), borderWidth: 0, barPercentage: 1, categoryPercentage: 1 }] }, options: Object.assign(common(), { scales: { x: xAxis(), y: { grid: { color: color('--grid') }, ticks: { callback: v => CS.compact(v) } } }, plugins: { legend: { display: false }, tooltip: tip({ label: c => ' ' + CS.int(c.parsed.y) + ' shares' }) } }) });
+    if (cd.volume) mkChart('chVol', { type: 'bar', data: { labels, datasets: [{ label: 'Volume', data: cd.volume, backgroundColor: color('--s-bench'), borderWidth: 0, barPercentage: 1, categoryPercentage: 1 }] }, options: Object.assign(common(), { scales: { x: xAxis(), y: { grid: { color: color('--grid') }, ticks: { callback: v => CS.compact(v) } } }, plugins: { legend: { display: false }, tooltip: tip({ label: c => ' ' + CS.int(c.parsed.y) + ' shares' }) } }) });
   }
 
   async function render() {
@@ -190,22 +190,24 @@
       if (w === 'TRUNCATED') notes.push('<div class="banner warn"><span>This history is shorter than ' + state.period + ': showing from <b>' + CS.date(sum.startDate) + '</b>, the first available close.</span></div>');
       else notes.push('<div class="banner warn"><span>' + WARN[w] + '</span></div>'); });
     if (personal && ser.feed === 'iex') notes.push('<div class="banner warn"><span><b>IEX feed.</b> Closes come from IEX trades and the volume shown is <b>IEX-only</b>, a small share of total market volume, so volume (and dollar volume) is understated and a close can differ slightly from the consolidated close.</span></div>');
-    if (sum.basis === 'total') notes.push('<div class="banner"><span>Returns include <b>reinvested dividends</b> (total return). The dashed line in the chart shows the price-only result for comparison.</span></div>');
     const hasCompare = !isBench;
+    const tiles = metricTiles(sum, isBench);
+    const last = ser.close.length - 1, prevClose = ser.close[last - 1], chg = prevClose ? ser.close[last] / prevClose - 1 : null;
     box.innerHTML =
       '<div class="card">' +
       '<div class="ex-head"><h2><span class="tk">' + E(sym) + '</span><span class="nm">' + E(ser.name || e.n || '') + '</span></h2>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="chip">' + E(ser.type || (e.t === 'E' ? 'ETF' : 'Stock')) + '</span><span class="chip">' + E(ser.exchange || e.x || '') + '</span>' + (ser.synthetic ? '<span class="chip" title="Generated, not real market prices">simulated</span>' : '') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="muted">' + E([ser.type || (e.t === 'E' ? 'ETF' : 'Stock'), ser.exchange || e.x || ''].filter(Boolean).join(' · ')) + '</span>' + (ser.synthetic ? '<span class="chip warn" title="Generated, not real market prices">Simulated</span>' : '') +
       (personal ? '<span class="chip" title="Real data for your private use only">private</span>' : '') +
       (personal && ser.feed === 'iex' ? '<span class="chip" title="IEX feed: prices from IEX trades, volume is IEX-only">IEX feed</span>' : '') +
       '<button class="btn small ex-star" id="star" type="button" aria-pressed="false"></button></div></div>' +
-      '<div class="xlinks" id="xlinks" hidden></div>' +
+      '<p class="px-line"><span class="px">' + CS.money(ser.close[last]) + '</span>' + (chg == null ? '' : ' <span class="' + dir(chg) + '">' + pct(chg, 2) + '</span>') + ' <span class="muted">close ' + CS.date(ser.dates[last]) + '</span></p><div class="xlinks" id="xlinks" hidden></div>' +
       '<div class="ex-controls"><div class="seg" role="group" aria-label="Period">' + PERIODS.map(p => '<button type="button" data-p="' + p + '" aria-pressed="' + (p === state.period) + '">' + p + '</button>').join('') + '</div>' +
       (hasCompare ? '<label class="check"><input type="checkbox" id="cmp"' + (state.compare ? ' checked' : '') + '> Compare with ' + BENCH + '</label>' : '') +
       (!(hasCompare && state.compare) ? '<div class="seg" role="group" aria-label="Chart type"><button type="button" data-m="growth" aria-pressed="' + (state.mode === 'growth') + '">Growth of 100</button><button type="button" data-m="price" aria-pressed="' + (state.mode === 'price') + '">Price</button></div>' : '') +
       '</div>' +
       '<div class="notes">' + notes.join('') + '</div></div>' +
-      '<div class="metrics" aria-label="Metrics">' + metricTiles(sum, isBench) + '</div>' +
+      '<div class="metrics" aria-label="Key figures">' + tiles.primary + '</div>' +
+      '<details class="more"><summary>More metrics</summary><div class="metrics" aria-label="More metrics">' + tiles.more + '</div></details>' +
       '<div class="charts"><div class="card"><h3 id="mainTitle"></h3><div class="chart-box"><canvas id="chMain" role="img" aria-label="Price or growth chart"></canvas></div></div>' +
       '<div class="card"><h3>Drawdown from the running peak</h3><p class="cap" style="margin-bottom:6px">Same basis as the return above (' + (sum.basis === 'total' ? 'total' : 'price') + ' return).</p><div class="chart-box mini"><canvas id="chDD" role="img" aria-label="Drawdown chart"></canvas></div></div>' +
       (ser.volume ? '<div class="card"><h3>Daily volume</h3><p class="cap" style="margin-bottom:6px">Shares traded, unadjusted.</p><div class="chart-box mini"><canvas id="chVol" role="img" aria-label="Volume chart"></canvas></div></div>' : '') + '</div>';
@@ -250,9 +252,9 @@
     if (personal) {
       $('privateBanner').hidden = false;
       $('privateBanner').querySelector('span').innerHTML = '<b>Personal edition: real market data for your private use.</b> Served to this computer only from your own account' + (meta.feed ? ' (' + E(String(meta.feed).toUpperCase()) + ' feed)' : '') + ', data through ' + E(CS.date(meta.asOf)) + '. Do not publish, screenshot or screen-share it: provider terms treat that as public display.';
-      document.querySelector('.kicker').textContent = 'Stock Explorer · personal edition';
+      { const k = document.querySelector('.kicker'); k.textContent = 'Personal edition'; k.hidden = false; }
     }
-    $('heroLead').textContent = 'Search ' + CS.int(index.length) + ' securities by ticker or company name, chart the history, compare against SPY, and see return, volatility, drawdown and volume, always labelled as price return or total return.';
+    $('heroLead').textContent = 'Search ' + CS.int(index.length) + ' securities by ticker or name. Every return is labelled as price return or total return.';
     watchlist = ExplorerSearch.watch.load(storage);
     parseHash(); bindSearch(); bindWatch();
     window.addEventListener('cs-theme', () => { if (state.sym) render(); });

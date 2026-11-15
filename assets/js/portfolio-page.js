@@ -47,18 +47,17 @@
   const plain = (v, d) => (v == null ? '—' : (v < 0 && Math.round(Math.abs(v) * 1000) > 0 ? '−' : '') + CS.num(Math.abs(v) * 100, d == null ? 1 : d) + '%');
   const shares = v => masked() ? '•••' : CS.num(v, Math.abs(v - Math.round(v)) < 1e-9 ? 0 : 4);
   const dir = v => CS.dir(v == null ? null : v);
-  const tile = (l, v, s, cls, basis) => '<div class="metric"><span class="l">' + l + '</span><span class="v ' + (cls || '') + '">' + v + '</span><span class="s">' + s + '</span>' +
-    (basis ? '<span class="basis ' + basis + '">' + (basis === 'total' ? 'dividends in cash' : 'price return') + '</span>' : '') + '</div>';
+  const tile = (l, v, s, cls, basis) => '<div class="metric"><span class="l">' + l + '</span><span class="v ' + (cls || '') + '">' + v + '</span><span class="s">' + s + '</span></div>';
 
   /* ---------- render ---------- */
   const color = n => CS.cssVar(n);
-  const PALETTE = ['--accent', '--stock', '--bond', '--up', '--down', '--flat'];
-  const EXTRA = ['#f472b6', '#34d399', '#fb923c', '#60a5fa', '#c084fc', '#facc15'];
-  const slice = i => (i < PALETTE.length ? color(PALETTE[i]) : EXTRA[(i - PALETTE.length) % EXTRA.length]);
+  const PALETTE = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6'];
+  const EXTRA = ['--s7', '--s8', '--s-bench'];
+  const slice = i => color(i < PALETTE.length ? PALETTE[i] : EXTRA[(i - PALETTE.length) % EXTRA.length]);
   function mkChart(id, cfg) { if (charts[id]) charts[id].destroy(); if ($(id)) charts[id] = new Chart($(id), cfg); }
   const common = () => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 } });
   const tip = cb => ({ backgroundColor: color('--surface-3'), titleColor: color('--text'), bodyColor: color('--text-2'), borderColor: color('--border'), borderWidth: 1, padding: 10, callbacks: cb });
-  const xAxis = () => ({ grid: { display: false }, ticks: { maxTicksLimit: window.innerWidth < 560 ? 4 : 7, autoSkip: true, maxRotation: 0 } });
+  const xAxis = () => ({ grid: { display: false }, ticks: { maxTicksLimit: window.innerWidth < 560 ? 3 : 6, autoSkip: true, maxRotation: 0 } });
   const yAxis = t => ({ grid: { color: color('--grid') }, title: { display: !!t, text: t || '' } });
   const lineDs = (label, data, c, extra) => Object.assign({ label, data, borderColor: color(c), backgroundColor: color(c), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.1 }, extra || {});
 
@@ -77,9 +76,8 @@
     $('summary').innerHTML = [
       tile('Total value', money(t.totalValue), 'Holdings ' + money(t.marketValue, 0) + ' + cash ' + money(t.cash, 0)),
       tile('Unrealized gain', smoney(t.unrealized), (t.unrealizedPct == null ? '' : pct(t.unrealizedPct) + ' on a cost of ') + money(t.costBasis, 0), dir(t.unrealized)),
-      tile('Realized gain', smoney(t.realized), 'From sales, first-in first-out, after fees', dir(t.realized)),
-      tile('Dividends received', money(t.dividends), 'Credited to cash on ex-dates'),
-      tile('Fees paid', money(t.fees), 'Trade fees and account fees')
+      tile('Realized gain', smoney(t.realized), 'After fees, first-in first-out', dir(t.realized)),
+      tile('Dividends received', money(t.dividends), 'Credited to cash on ex-dates')
     ].join('');
   }
 
@@ -89,7 +87,7 @@
     const notes = r.warnings.filter(w => w.code !== 'TX_BEFORE_START').map(w => '<div class="banner warn"><span>' + (WARN_TEXT[w.code] || (x => E(x.message)))(Object.assign({}, w, { message: clean(w.message) })) + '</span></div>');
     if (p && p.truncated) notes.push('<div class="banner warn"><span>Your history is shorter than ' + state.period + ': showing from <b>' + CS.date(p.startDate) + '</b>.</span></div>');
     $('notes').innerHTML = notes.join('');
-    if (!p || p.twr === undefined) { $('recon').innerHTML = ''; $('perfTiles').innerHTML = '<p class="cap">Not enough history for this period.</p>'; return; }
+    if (!p || p.twr === undefined) { $('recon').innerHTML = ''; $('perfTiles').innerHTML = '<p class="cap" style="padding:12px">Not enough history for this period.</p>'; $('perfMore').innerHTML = ''; return; }
     const b = r.basis;
     $('recon').innerHTML =
       '<tr><td>Account value change<small>What the balance did. Includes the money you put in or took out, so it is <b>not</b> a return.</small></td><td class="r ' + dir(p.valueChange) + '">' + smoney(p.valueChange) + '</td></tr>' +
@@ -98,27 +96,31 @@
       '<tr><td>Time-weighted return<small>The performance of the investments, independent of when money moved. Compare this with ' + E(r.benchmark) + '.</small></td><td class="r ' + dir(p.twr) + '">' + pct(p.twr) + '</td></tr>' +
       '<tr><td>Modified Dietz return<small>Dollar-weighted estimate: reflects the timing of your own deposits.</small></td><td class="r ' + dir(p.modifiedDietz) + '">' + pct(p.modifiedDietz) + '</td></tr>';
     const dd = p.maxDrawdown || {};
+    const more = [];
     $('perfTiles').innerHTML = [
-      tile('Return vs ' + E(r.benchmark), p.excess == null ? '—' : (p.excess >= 0 ? '+' : '−') + CS.num(Math.abs(p.excess) * 100, 2) + ' pts', 'Portfolio ' + pct(p.twr) + ' · ' + E(r.benchmark) + ' ' + pct(p.benchmarkReturn), dir(p.excess), b),
-      tile('Annualized return', pct(p.annualizedTwr), p.annualizedTwr == null ? 'Shown for windows of one year or more' : 'Compound annual rate, time-weighted', dir(p.annualizedTwr), p.annualizedTwr == null ? null : b),
-      tile('Volatility', plain(p.volatility), p.volatility == null ? 'Needs at least 20 daily returns' : E(r.benchmark) + ' ' + plain(p.benchmarkVolatility) + ' · annualized', '', p.volatility == null ? null : b),
-      tile('Beta vs ' + E(r.benchmark), p.beta == null ? '—' : CS.num(p.beta, 2), p.beta == null ? 'Needs at least 60 daily returns' : 'Sensitivity to ' + E(r.benchmark) + ' (' + p.nReturns + ' returns)'),
-      tile('Correlation', p.correlation == null ? '—' : CS.num(p.correlation, 2), 'With ' + E(r.benchmark) + ' daily returns'),
-      tile('Max drawdown', dd.depth == null ? '—' : plain(dd.depth), dd.peakDate ? 'Peak ' + CS.date(dd.peakDate) + ' → trough ' + CS.date(dd.troughDate) + (dd.recoveryDate ? '<br>recovered ' + CS.date(dd.recoveryDate) : '<br>not yet recovered') : 'No decline in this window', '', dd.depth == null ? null : b)
+      tile('Return vs ' + E(r.benchmark), p.excess == null ? '—' : (p.excess >= 0 ? '+' : '−') + CS.num(Math.abs(p.excess) * 100, 2) + ' pts', 'Portfolio ' + pct(p.twr) + ' · ' + E(r.benchmark) + ' ' + pct(p.benchmarkReturn), dir(p.excess)),
+      tile('Annualized return', pct(p.annualizedTwr), p.annualizedTwr == null ? 'For windows of a year or more' : 'Compound annual rate', dir(p.annualizedTwr)),
+      tile('Volatility', plain(p.volatility), p.volatility == null ? 'Needs 20 daily returns' : E(r.benchmark) + ' ' + plain(p.benchmarkVolatility) + ' · annualized', '', p.volatility == null ? null : b),
+      tile('Max drawdown', dd.depth == null ? '—' : plain(dd.depth), dd.peakDate ? CS.date(dd.peakDate, true) + ' → ' + CS.date(dd.troughDate, true) + (dd.recoveryDate ? ' · recovered' : ' · not recovered') : 'No decline in this window', '', dd.depth == null ? null : b)
+    ].join('');
+    $('perfMore').innerHTML = [
+      tile('Beta vs ' + E(r.benchmark), CS.dec(p.beta, 2), p.beta == null ? 'Needs 60 daily returns' : 'Sensitivity to ' + E(r.benchmark) + ' (' + p.nReturns + ' returns)'),
+      tile('Correlation', CS.dec(p.correlation, 2), 'With ' + E(r.benchmark) + ' daily returns'),
+      tile('Fees paid', money(r.totals.fees), 'Trade and account fees')
     ].join('');
   }
 
   function renderCharts(r) {
-    Chart.defaults.color = color('--text-2'); Chart.defaults.font.family = color('--font'); Chart.defaults.borderColor = color('--grid');
+    CS.chartDefaults();
     const c = Portfolio.chart(r, state.period); if (!c) return;
     const fmtD = d => CS.date(d, c.dates.length > 260 ? false : true);
     const labels = c.dates.map(fmtD);
     $('chGrowthT').textContent = 'Growth of 100 · portfolio vs ' + r.benchmark;
-    $('chGrowthC').textContent = r.basisLabel + '. Deposits and withdrawals are removed, so this line shows investment performance only.';
-    mkChart('chGrowth', { type: 'line', data: { labels, datasets: [lineDs('Portfolio', c.twr, '--accent'), lineDs(r.benchmark, c.bench, '--stock')] },
+    $('chGrowthC').textContent = 'Deposits and withdrawals are removed, so this shows investment performance only.';
+    mkChart('chGrowth', { type: 'line', data: { labels, datasets: [lineDs('Portfolio', c.twr, '--s1'), lineDs(r.benchmark, c.bench, '--s-bench')] },
       options: Object.assign(common(), { scales: { x: xAxis(), y: yAxis('Growth of 100') }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + CS.num(x.parsed.y, 2) }) } }) });
     if (masked()) { if (charts.chValue) { charts.chValue.destroy(); delete charts.chValue; } }          // dollar series are never even built while amounts are hidden
-    else mkChart('chValue', { type: 'line', data: { labels, datasets: [lineDs('Account value', c.value, '--accent'), lineDs('Net contributions', c.netContributions, '--flat', { borderDash: [6, 4], stepped: true })] },
+    else mkChart('chValue', { type: 'line', data: { labels, datasets: [lineDs('Account value', c.value, '--s1'), lineDs('Net contributions', c.netContributions, '--s-bench', { borderDash: [6, 4], stepped: true })] },
       options: Object.assign(common(), { scales: { x: xAxis(), y: yAxis('USD') }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + money(x.parsed.y) }) } }) });
     mkChart('chDD', { type: 'line', data: { labels, datasets: [lineDs('Drawdown', c.drawdown, '--down', { fill: true, backgroundColor: color('--down-soft'), borderWidth: 1.5 })] },
       options: Object.assign(common(), { scales: { x: xAxis(), y: yAxis('%') }, plugins: { legend: { display: false }, tooltip: tip({ label: x => ' ' + CS.num(x.parsed.y, 2) + '%' }) } }) });
@@ -140,7 +142,7 @@
   }
 
   function renderHoldings(r) {
-    $('holdCap').textContent = r.holdings.length + ' position' + (r.holdings.length === 1 ? '' : 's') + ' · cost basis uses first-in first-out lots including buy fees · share counts are adjusted for splits';
+    $('holdCap').textContent = r.holdings.length + ' position' + (r.holdings.length === 1 ? '' : 's') + ' · first-in first-out lots including buy fees · shares adjusted for splits';
     $('holdBody').innerHTML = r.holdings.map(h => '<tr><td><span class="tk">' + E(lab(h.symbol)) + '</span><br><span class="nm">' + (hidden() ? '' : E(h.name)) + '</span></td>' +
       '<td class="r">' + shares(h.shares) + '</td><td class="r">' + money(h.avgCost) + '</td><td class="r">' + money(h.price) + '<br><small class="nm">' + (h.priceDate ? CS.date(h.priceDate) : '') + '</small></td>' +
       '<td class="r">' + money(h.marketValue) + '</td><td class="r">' + plain(h.weight) + '</td>' +
@@ -182,12 +184,13 @@
       const e = (r && r.errors && r.errors[0]) || { code: 'NONE', message: 'no data' };
       const empty = e.code === 'EMPTY' || !state.pf.transactions.length;
       $('summary').innerHTML = '<div class="ex-empty" style="grid-column:1/-1"><h2>' + (empty ? 'No transactions yet' : 'This ledger cannot be analysed yet') + '</h2><p>' + E(empty ? (PERSONAL ? 'Add a deposit and a buy below, or an existing position marked “funded from outside”.' : 'Nothing to show.') : clean(e.message)) + '</p></div>';
-      ['recon', 'perfTiles', 'conc', 'holdBody', 'allocLegend', 'notes', 'periods'].forEach(id => { $(id).innerHTML = ''; });
+      ['recon', 'perfTiles', 'perfMore', 'conc', 'holdBody', 'allocLegend', 'notes', 'periods'].forEach(id => { $(id).innerHTML = ''; });
       Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
       $('asOf').textContent = ''; $('holdCap').textContent = '';
       return;
     }
-    $('chValue').closest('.card').hidden = masked();
+    $('chValue').closest('details').hidden = masked();
+    $('txPanel').open = $('txPanel').open || (editable() && !state.pf.transactions.length);
     $('modeNote').textContent = r.basisLabel;
     $('modeSel').value = state.mode;
     renderSummary(r); renderPerf(r); renderCharts(r); renderConcentration(r); renderHoldings(r);

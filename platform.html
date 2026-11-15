@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CreditScope · About</title>
 <meta name="description" content="What CreditScope is, how it works, where its data comes from, how every number is calculated and tested, and its limits.">
-<meta name="theme-color" content="#060a10">
+<meta name="theme-color" content="#0b0d10">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -16,38 +16,38 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 
-<nav class="nav" aria-label="Main">
-  <div class="wrap">
-    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
-    <a class="link" href="index.html">Today</a>
-    <a class="link" href="browse.html">Browse</a>
-    <a class="link" href="trends.html">Trends</a>
-    <a class="link active" href="explorer.html" aria-current="true">Explorer</a>
-    <span class="spacer"></span>
-    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
-    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
-  </div>
-</nav>
-<nav class="subnav" aria-label="Research tools"><div class="wrap"><span class="lab">Research</span><a href="explorer.html">Explorer</a><a href="fundamentals.html">Fundamentals</a><a href="compare.html">Compare</a><a href="portfolio.html">Portfolio</a><a href="platform.html" aria-current="page">About</a></div></nav>
+<!-- nav:start -->
+<nav class="nav" aria-label="Main"><div class="wrap">
+<a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.5"/><polyline points="6,15.5 10,11.5 13.5,14 18,8" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+<div class="areas"><a class="link" href="index.html">Markets</a><a class="link" href="explorer.html">Research</a><a class="link" href="portfolio.html">Portfolio</a></div>
+<span class="spacer"></span>
+<a class="util" href="platform.html" aria-current="page">About</a>
+<button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+<button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+</div></nav>
+<!-- nav:end -->
 
-<header class="hero">
+<header class="page-head">
   <div class="wrap">
-    <div class="kicker">About the platform</div>
-    <h1>An investment research and analytics platform, built from scratch</h1>
-    <p class="lead">CreditScope started as an automated daily tracker of twelve stock and bond ETFs. It has grown into a small research platform: a data pipeline, security and company research, side-by-side comparison, and private portfolio analytics, with every calculation checked against an independent implementation.</p>
+    <div class="ph-row"><h1>About CreditScope</h1></div>
+    <p class="sub">An investment research and analytics platform: market data, company fundamentals, comparison and portfolio analytics, with every calculation checked against an independent implementation.</p>
   </div>
 </header>
 
 <main class="wrap about" id="main">
   <section aria-labelledby="whatH">
     <h2 id="whatH">What you can do here</h2>
-    <div class="grid-cards">
-      <a class="card" href="index.html"><h3>Today, Browse, Trends</h3><p>The original tracker: twelve ETFs collected every day by a GitHub Actions pipeline, with raw files, a rebuilt history, a daily GitHub Issue and an installable, offline-capable site.</p></a>
-      <a class="card" href="explorer.html"><h3>Explorer</h3><p>Search securities and see return, volatility, drawdown and a comparison with SPY, always labelled price return or total return.</p></a>
-      <a class="card" href="fundamentals.html"><h3>Fundamentals</h3><p>Revenue, profit, margins, balance sheet and cash flow from SEC filings, each figure linked to its filing, with growth and profitability ratios.</p></a>
-      <a class="card" href="compare.html"><h3>Compare</h3><p>Two to six securities over exactly the same dates and basis: growth of 100, volatility, beta, drawdowns, correlations; and company fundamentals side by side.</p></a>
-      <a class="card" href="portfolio.html"><h3>Portfolio</h3><p>A transaction ledger with cost basis, unrealized gains, allocation, time-weighted return against SPY, risk and concentration. Real holdings stay private; this page shows a simulated one.</p></a>
-    </div>
+    <dl class="area-list">
+      <div><dt><a href="index.html">Markets</a></dt>
+        <dd>The original daily tracker: twelve stock and bond ETFs collected every day by a GitHub Actions pipeline, with raw files, a rebuilt history, a daily GitHub Issue and an installable, offline-capable site.
+          <span class="go"><a href="index.html">Today</a><a href="browse.html">Browse</a><a href="trends.html">Trends</a></span></dd></div>
+      <div><dt><a href="explorer.html">Research</a></dt>
+        <dd>Look at one security or company, or several side by side. Returns and risk against SPY, financial statements linked to their SEC filings, and comparisons over exactly the same dates and basis.
+          <span class="go"><a href="explorer.html">Explorer</a><a href="fundamentals.html">Fundamentals</a><a href="compare.html">Compare</a></span></dd></div>
+      <div><dt><a href="portfolio.html">Portfolio</a></dt>
+        <dd>A transaction ledger with cost basis, gains, allocation, time-weighted return against SPY, risk and concentration. Real holdings stay private; this page shows a simulated portfolio.
+          <span class="go"><a href="portfolio.html">Portfolio</a></span></dd></div>
+    </dl>
   </section>
 
   <section aria-labelledby="engH">
@@ -74,7 +74,7 @@
     <p>The site is plain HTML, CSS and JavaScript hosted on GitHub Pages. There is no server and no database; nothing you type is sent anywhere. The daily job rebuilds its history only from the stored raw files, opens a GitHub Issue each day, and a test suite runs on every push.</p>
   </section>
 
-  <section aria-labelledby="dataH">
+  <section id="data" aria-labelledby="dataH">
     <h2 id="dataH">Data sources and what is public</h2>
     <div class="table-wrap"><table class="t">
       <caption class="sr-only">Data sources and their use</caption>

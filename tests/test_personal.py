@@ -336,7 +336,7 @@ def test_server_only_binds_to_loopback(tmp_path):
 def test_server_serves_site_and_private_data_with_no_store(served):
     s, _ = served
     st, h, body = request(s, "/explorer.html")
-    assert st == 200 and b"Stock Explorer" in body and h["x-content-type-options"] == "nosniff"
+    assert st == 200 and b"<h1>Explorer</h1>" in body and h["x-content-type-options"] == "nosniff"
     assert b'name="creditscope-personal"' in body                              # marker that makes the page look for private data
     assert b"creditscope-personal" not in request(s, "/index.html")[2]
     assert b"creditscope-personal" not in (ROOT / "explorer.html").read_bytes()  # the public file never carries it

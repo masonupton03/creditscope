@@ -4,8 +4,9 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const E = CS.esc;
-  const COLORS = { SPY: '#4cc9f0', QQQ: '#2563eb', IWM: '#14b8a6', EFA: '#818cf8', EEM: '#67e8f9', XLF: '#1e40af',
-    SHY: '#fbbf24', IEF: '#fb923c', TLT: '#f43f5e', AGG: '#c084fc', LQD: '#a3e635', HYG: '#e879f9' };
+  // each ETF keeps one colour slot (the validated categorical order); stocks are solid lines and bonds dashed, so six colours serve twelve ETFs
+  const SLOT = { SPY: 1, QQQ: 2, IWM: 3, EFA: 4, EEM: 5, XLF: 6, SHY: 1, IEF: 2, TLT: 3, AGG: 4, LQD: 5, HYG: 6 };
+  const colorOf = id => CS.cssVar('--s' + (SLOT[id] || 1));
   const charts = {};
   let rows = [], report = null, byItem = null, classOf = {}, ids = [];
   let ex = { value: 'rebased', picked: ['SPY', 'QQQ', 'TLT', 'HYG'] };
@@ -17,9 +18,7 @@
 
   /* ---------- chart plumbing ---------- */
   function setDefaults() {
-    Chart.defaults.color = CS.cssVar('--text-2');
-    Chart.defaults.font.family = CS.cssVar('--font');
-    Chart.defaults.borderColor = CS.cssVar('--grid');
+    CS.chartDefaults();
     Chart.defaults.animation = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 350 };
   }
   function make(id, config) {
@@ -53,7 +52,7 @@ const tickPct = v => (Math.round(v * 100) / 100) + '%';
   function drawExplorer() {
     const labels = report.meta.session_dates;
     const datasets = ex.picked.filter(id => ids.indexOf(id) >= 0).map(id => ({
-      label: id, data: exSeries(id), borderColor: COLORS[id] || '#999', backgroundColor: COLORS[id] || '#999',
+      label: id, data: exSeries(id), borderColor: colorOf(id), backgroundColor: colorOf(id),
       borderDash: classOf[id] === 'Bond' ? [6, 4] : [], borderWidth: 2, pointRadius: labels.length > 25 ? 0 : 3, pointHoverRadius: 5, tension: 0.15, spanGaps: true
     }));
     $('exNote').textContent = datasets.length
@@ -83,7 +82,7 @@ const tickPct = v => (Math.round(v * 100) / 100) + '%';
       (chartId ? '<div class="card chart-card"><div class="chart-box' + (tall ? ' tall' : '') + '"><canvas id="' + chartId + '" role="img" aria-label="Chart for finding ' + n + '"></canvas></div></div>' : '') + '</section>';
   }
   const how = t => '<p class="how"><b>How it is computed:</b> ' + t + '</p>';
-  const why = t => '<p class="sig"><b>Why it matters:</b> ' + t + '</p>';
+  const why = t => '<details class="why"><summary>Why it matters</summary><p class="sig">' + t + '</p></details>';
 
   function finding1() {
     const R = report.returns, m = report.meta;
@@ -125,7 +124,7 @@ const tickPct = v => (Math.round(v * 100) / 100) + '%';
     body += '</p>' + how('each ETF\'s <code>pct_change</code> (its percent change versus the previous close) is read for every trading session. The biggest move is the largest absolute value; each bar below is the mean of the absolute values across all ETFs in that session. Weekend and holiday runs are not counted again.') +
       why('big moves in broad stock ETFs mean market-wide stress or a surprise; big moves in bond ETFs mean rates or credit conditions shifted. The average absolute move is a simple gauge of how turbulent a session was.');
     return { html: section(2, 'f2', title, body, 'c2'), draw: () => make('c2', {
-      type: 'bar', data: { labels: P.map(p => CS.date(p.sd, true)), datasets: [{ label: 'Average absolute daily move (%)', data: P.map(p => p.avg_abs_pct), backgroundColor: P.map(p => (p.sd === b.sd ? CS.cssVar('--accent') : CS.cssVar('--stock'))), borderRadius: 4, maxBarThickness: 90 }] },
+      type: 'bar', data: { labels: P.map(p => CS.date(p.sd, true)), datasets: [{ label: 'Average absolute daily move (%)', data: P.map(p => p.avg_abs_pct), backgroundColor: P.map(p => (p.sd === b.sd ? CS.cssVar('--s2') : CS.cssVar('--stock'))), borderRadius: 4, maxBarThickness: 90 }] },
       options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { grid: grid(), beginAtZero: true, title: { display: true, text: 'Average |daily change| (%)' } } },
         plugins: { legend: { display: false }, tooltip: tooltip({ callbacks: { label: c => ' Average move ' + CS.num(c.parsed.y, 2) + '%', afterLabel: c => ' Biggest: ' + P[c.dataIndex].max_item + ' ' + CS.pct(P[c.dataIndex].max_pct) } }) } } }) };
   }
@@ -170,7 +169,7 @@ const tickPct = v => (Math.round(v * 100) / 100) + '%';
     return { html: section(4, 'f4', title, body, 'c4', true), draw: () => make('c4', {
       type: 'bar', data: { labels: V.map(v => v.item_id), datasets: [
         { label: 'Average volume per session', data: V.map(v => v.avg_volume), backgroundColor: V.map(v => (v.asset_class === 'Bond' ? CS.cssVar('--bond') : CS.cssVar('--stock'))), borderRadius: 4 }
-        ].concat(multi ? [{ label: 'Latest session', data: V.map(v => v.latest_volume), backgroundColor: CS.cssVar('--accent'), borderRadius: 4 }] : []) },
+        ].concat(multi ? [{ label: 'Latest session', data: V.map(v => v.latest_volume), backgroundColor: CS.cssVar('--s2'), borderRadius: 4 }] : []) },
       options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { grid: grid(), ticks: { callback: v => CS.compact(v) }, title: { display: true, text: 'Shares per session' } }, y: { grid: { display: false } } },
         plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tooltip({ callbacks: { label: c => ' ' + c.dataset.label + ': ' + CS.int(c.parsed.x) } }) } } }) };
   }

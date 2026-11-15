@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>CreditScope · Portfolio</title>
 <meta name="description" content="Portfolio analytics: holdings, cost basis, unrealized gains, allocation, time-weighted return against SPY, volatility, beta, drawdown and concentration. The public page shows a simulated portfolio.">
-<meta name="theme-color" content="#060a10">
+<meta name="theme-color" content="#0b0d10">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -18,91 +18,85 @@
 <a class="skip" href="#app">Skip to content</a>
 <div class="loading" id="loading"><div><div class="spinner"></div><div>Loading the portfolio…</div></div></div>
 
-<nav class="nav" aria-label="Main">
-  <div class="wrap">
-    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
-    <a class="link" href="index.html">Today</a>
-    <a class="link" href="browse.html">Browse</a>
-    <a class="link" href="trends.html">Trends</a>
-    <a class="link active" href="explorer.html" aria-current="true">Explorer</a>
-    <span class="spacer"></span>
-    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
-    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
-  </div>
-</nav>
-<nav class="subnav" aria-label="Research tools"><div class="wrap"><span class="lab">Research</span><a href="explorer.html">Explorer</a><a href="fundamentals.html">Fundamentals</a><a href="compare.html">Compare</a><a href="portfolio.html" aria-current="page">Portfolio</a><a href="platform.html">About</a></div></nav>
+<!-- nav:start -->
+<nav class="nav" aria-label="Main"><div class="wrap">
+<a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-width="1.5"/><polyline points="6,15.5 10,11.5 13.5,14 18,8" fill="none" stroke="#3987e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+<div class="areas"><a class="link" href="index.html">Markets</a><a class="link" href="explorer.html">Research</a><a class="link active" href="portfolio.html" aria-current="page">Portfolio</a></div>
+<span class="spacer"></span>
+<a class="util" href="platform.html">About</a>
+<button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+<button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+</div></nav>
+<!-- nav:end -->
 
-<header class="hero">
+<header class="page-head">
   <div class="wrap">
-    <div class="kicker">Portfolio analytics</div>
-    <h1>Your portfolio, measured properly</h1>
-    <p class="lead">Holdings, cost basis and unrealized gains, allocation, and performance against SPY. Time-weighted return is kept separate from the change in account value, so deposits and withdrawals are never mistaken for gains.</p>
-    <div class="banner" id="dataBanner" role="status" hidden></div>
-    <div class="ex-controls" id="viewBar" hidden><label for="viewSel"><b>View</b></label>
+    <div class="ph-row"><h1>Portfolio</h1></div>
+    <p class="sub" id="heroLead">Holdings, gains, and performance against SPY. Time-weighted return is kept apart from changes in account value.</p>
+    <div class="ex-controls" id="viewBar" hidden><label for="viewSel">View</label>
       <select id="viewSel" class="input" aria-describedby="viewHelp"><option value="real">My real portfolio</option><option value="mask">Hide dollar amounts and share counts</option><option value="hide">Hide tickers, names, shares and dollar amounts</option><option value="sample">Show the simulated sample instead</option></select>
       <span class="cap" id="viewHelp">For screenshots and demos. Nothing is stored; reloading returns to the view in the address bar.</span></div>
+    <div class="banner" id="dataBanner" role="status" hidden></div>
     <div class="banner private" id="privateBanner" role="note" hidden><span></span></div>
-    <div class="banner synth" id="synthBanner" role="note" hidden><span><b>Simulated demonstration.</b> This portfolio and every price in it are <b>made up</b> (a seeded model); they are not real holdings or real market prices. A private edition of this page runs only on the owner’s computer with real data and real holdings, which are never published.</span></div>
+    <div class="banner synth" id="synthBanner" role="note" hidden><span><b>Simulated portfolio.</b> Every holding and price here is made up. A private edition with real holdings runs only on the owner’s computer and is never published. <a href="platform.html#data">About the data</a></span></div>
   </div>
 </header>
 
 <main class="wrap" id="app" hidden>
-  <section class="card" aria-labelledby="sumH">
-    <h2 id="sumH">Account today</h2>
+  <section aria-labelledby="sumH">
+    <h2 id="sumH" class="sr-only">Account today</h2>
+    <div class="tiles" id="summary"></div>
     <p class="cap" id="asOf"></p>
-    <div class="metrics" id="summary"></div>
   </section>
 
-  <section class="card" aria-labelledby="perfH">
-    <div class="ex-head"><h2 id="perfH">Performance</h2>
-      <div class="seg" id="periods" role="group" aria-label="Period"></div></div>
-    <div class="ex-controls"><label for="modeSel"><b>Compare with SPY using</b></label>
-      <select id="modeSel" class="input"><option value="auto">Automatic (follows your recorded reinvestments)</option><option value="cash">Dividends held as cash</option><option value="reinvested">Dividends reinvested</option><option value="price">Price return only</option></select></div>
-    <p class="cap" id="modeNote"></p>
+  <section class="section-gap" aria-labelledby="perfH">
+    <div class="sec-head"><h2 id="perfH">Performance</h2><div class="seg" id="periods" role="group" aria-label="Period"></div></div>
+    <div class="metrics" id="perfTiles"></div>
+    <div class="card chart-card"><div class="chart-head"><h3 id="chGrowthT">Growth of 100</h3>
+      <label class="inline-select">Compare with SPY using <select id="modeSel" class="input"><option value="auto">Automatic</option><option value="cash">Dividends held as cash</option><option value="reinvested">Dividends reinvested</option><option value="price">Price return only</option></select></label></div>
+      <p class="cap" id="chGrowthC"></p>
+      <div class="chart-box"><canvas id="chGrowth" role="img" aria-label="Portfolio time-weighted growth against SPY"></canvas></div>
+      <p class="cap" id="modeNote"></p></div>
     <div class="notes" id="notes"></div>
-    <div class="pf-split">
-      <div>
-        <h3 class="sub">Return is not the same as a change in account value</h3>
-        <table class="t pf-recon"><tbody id="recon"></tbody></table>
-      </div>
-      <div class="metrics tight" id="perfTiles"></div>
-    </div>
+    <details class="more"><summary>Return versus change in account value</summary>
+      <p class="cap">A balance can rise because you deposited money. The investment gain and the time-weighted return remove that.</p>
+      <table class="t pf-recon"><tbody id="recon"></tbody></table></details>
+    <details class="more"><summary>Risk and drawdown detail</summary>
+      <div class="metrics tight" id="perfMore"></div>
+      <div class="card chart-card"><h3>Drawdown</h3><p class="cap">Fall from the previous peak on the time-weighted return, so deposits do not hide losses.</p><div class="chart-box mini"><canvas id="chDD" role="img" aria-label="Drawdown"></canvas></div></div></details>
+    <details class="more"><summary>Account value and net contributions</summary>
+      <div class="card chart-card"><p class="cap">The gap between the lines is the investment gain.</p><div class="chart-box short"><canvas id="chValue" role="img" aria-label="Account value and net contributions"></canvas></div></div></details>
   </section>
 
-  <section class="charts" aria-label="Charts">
-    <div class="card"><h3 id="chGrowthT">Growth of 100</h3><p class="cap" id="chGrowthC"></p><div class="chart-box"><canvas id="chGrowth" role="img" aria-label="Portfolio time-weighted growth against SPY"></canvas></div></div>
-    <div class="card"><h3>Account value and net contributions</h3><p class="cap">The gap between the two lines is the investment gain. Contributions are everything you put in minus everything you took out.</p><div class="chart-box short"><canvas id="chValue" role="img" aria-label="Account value and net contributions"></canvas></div></div>
-    <div class="card"><h3>Drawdown</h3><p class="cap">Fall from the portfolio’s previous peak, measured on the time-weighted return so deposits do not hide losses.</p><div class="chart-box mini"><canvas id="chDD" role="img" aria-label="Drawdown"></canvas></div></div>
-  </section>
-
-  <section class="pf-split two" aria-label="Allocation and concentration">
-    <div class="card"><h3>Allocation</h3><div class="chart-box mini"><canvas id="chAlloc" role="img" aria-label="Allocation by security"></canvas></div><ul class="legend" id="allocLegend"></ul></div>
-    <div class="card"><h3>Concentration risk</h3><div class="metrics tight" id="conc"></div></div>
-  </section>
-
-  <section class="card" aria-labelledby="holdH">
+  <section class="section-gap" aria-labelledby="holdH">
     <h2 id="holdH">Holdings</h2>
     <p class="cap" id="holdCap"></p>
-    <div class="table-wrap"><table class="t" id="holdTable"><thead><tr><th>Symbol</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Price</th><th class="r">Value</th><th class="r">Weight</th><th class="r">Unrealized</th><th class="r">Dividends</th></tr></thead><tbody id="holdBody"></tbody></table></div>
+    <div class="card flush"><div class="table-wrap"><table class="t" id="holdTable"><caption class="sr-only">Holdings</caption><thead><tr><th>Symbol</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Price</th><th class="r">Value</th><th class="r">Weight</th><th class="r">Unrealized</th><th class="r">Dividends</th></tr></thead><tbody id="holdBody"></tbody></table></div></div>
   </section>
 
-  <section class="card" aria-labelledby="txH">
-    <h2 id="txH">Transactions</h2>
-    <p class="cap" id="txCap"></p>
-    <form id="txForm" class="pf-form" autocomplete="off" hidden>
-      <label>Type<select id="fType"><option value="buy">Buy</option><option value="sell">Sell</option><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="dividend">Dividend (manual)</option><option value="drip">Dividend + reinvestment</option><option value="fee">Fee</option></select></label>
-      <label>Date<input id="fDate" type="date" required></label>
-      <label data-for="buy sell dividend drip">Symbol<input id="fSymbol" type="text" maxlength="10" spellcheck="false" placeholder="VTI"></label>
-      <label data-for="buy sell drip">Shares bought<input id="fShares" type="number" step="any" min="0" inputmode="decimal"></label>
-      <label data-for="buy sell drip">Price per share<input id="fPrice" type="number" step="any" min="0" inputmode="decimal"></label>
-      <label data-for="buy sell">Fee<input id="fFee" type="number" step="any" min="0" inputmode="decimal" value="0"></label>
-      <label data-for="deposit withdrawal dividend fee drip">Amount<input id="fAmount" type="number" step="any" min="0" inputmode="decimal"></label>
-      <label class="check" data-for="buy sell"><input id="fExternal" type="checkbox"> Funded from outside the portfolio <small>(an existing position: its cost counts as a deposit on that date)</small></label>
-      <button class="btn primary" type="submit">Add</button>
-    </form>
-    <div class="banner warn" id="txMsg" role="alert" hidden></div>
-    <div class="ex-controls" id="divBar" hidden><button class="btn small" type="button" id="divBtn"></button><span class="cap" id="divCap"></span></div>
-    <div class="table-wrap"><table class="t" id="txTable"><thead><tr><th>Date entered</th><th>Applied on</th><th>Type</th><th>Symbol</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Amount</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="txBody"></tbody></table></div>
+  <section class="pf-split two section-gap" aria-label="Allocation and concentration">
+    <div><h2>Allocation</h2><div class="chart-box mini"><canvas id="chAlloc" role="img" aria-label="Allocation by security"></canvas></div><ul class="legend" id="allocLegend"></ul></div>
+    <div><h2>Concentration</h2><div class="metrics tight" id="conc"></div></div>
+  </section>
+
+  <section class="section-gap" aria-labelledby="txH">
+    <details class="more" id="txPanel"><summary id="txH">Transactions</summary>
+      <p class="cap" id="txCap"></p>
+      <form id="txForm" class="pf-form" autocomplete="off" hidden>
+        <label>Type<select id="fType"><option value="buy">Buy</option><option value="sell">Sell</option><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="dividend">Dividend (manual)</option><option value="drip">Dividend + reinvestment</option><option value="fee">Fee</option></select></label>
+        <label>Date<input id="fDate" type="date" required></label>
+        <label data-for="buy sell dividend drip">Symbol<input id="fSymbol" type="text" maxlength="10" spellcheck="false" placeholder="VTI"></label>
+        <label data-for="buy sell drip">Shares bought<input id="fShares" type="number" step="any" min="0" inputmode="decimal"></label>
+        <label data-for="buy sell drip">Price per share<input id="fPrice" type="number" step="any" min="0" inputmode="decimal"></label>
+        <label data-for="buy sell">Fee<input id="fFee" type="number" step="any" min="0" inputmode="decimal" value="0"></label>
+        <label data-for="deposit withdrawal dividend fee drip">Amount<input id="fAmount" type="number" step="any" min="0" inputmode="decimal"></label>
+        <label class="check" data-for="buy sell"><input id="fExternal" type="checkbox"> Funded from outside the portfolio <small>(an existing position: its cost counts as a deposit on that date)</small></label>
+        <button class="btn primary" type="submit">Add</button>
+      </form>
+      <div class="banner warn" id="txMsg" role="alert" hidden></div>
+      <div class="ex-controls" id="divBar" hidden><button class="btn small" type="button" id="divBtn"></button><span class="cap" id="divCap"></span></div>
+      <div class="card flush"><div class="table-wrap"><table class="t" id="txTable"><thead><tr><th>Date entered</th><th>Applied on</th><th>Type</th><th>Symbol</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Amount</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="txBody"></tbody></table></div></div>
+    </details>
   </section>
 
   <details class="box ex-method" id="method">

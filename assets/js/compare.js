@@ -10,7 +10,7 @@
   let priceMeta = {}, priceIndex = [], fdIndex = [], priceRoot = 'explorer/sample/', personal = false, fdRoot = 'explorer/sec-sample/', fdSynth = true;
   const cache = new Map(), fdCache = new Map(), charts = {};
   const PRESET = ['AAPL', 'MSFT', 'TLT', 'XOM'];
-  const COLORS = ['--accent', '--stock', '--bond', '--up', '--down', '--flat'];
+  const COLORS = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6'];
   const colorOf = i => CS.cssVar(COLORS[i % COLORS.length]);
 
   async function getJSON(url) {
@@ -72,21 +72,21 @@
       return '<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + colorOf(i) + ';margin-right:8px"></span><span class="tk">' + E(s.symbol) + '</span><br><span class="nm">' + E(s.name) + '</span></td>' +
         '<td class="r ' + dir(s.cumulative) + '">' + pct(s.cumulative) + '</td><td class="r ' + dir(s.annualized) + '">' + pct(s.annualized) + '</td><td class="r">' + plain(s.volatility) + '</td>' +
         '<td class="r">' + plain(dd.depth) + (dd.troughDate ? '<br><small class="nm">trough ' + CS.date(dd.troughDate) + '</small>' : '') + '</td>' +
-        '<td class="r">' + (s.beta == null ? '—' : CS.num(s.beta, 2)) + '</td><td class="r">' + (s.correlationToBenchmark == null ? '—' : CS.num(s.correlationToBenchmark, 2)) + '</td></tr>';
+        '<td class="r">' + CS.dec(s.beta, 2) + '</td><td class="r">' + CS.dec(s.correlationToBenchmark, 2) + '</td></tr>';
     }).join('');
     const corr = r.correlation ? '<div class="table-wrap"><table class="corr"><caption class="sr-only">Correlation of daily returns between each pair</caption><thead><tr><th><span class="sr-only">Security</span></th>' + r.symbols.map(s => '<th scope="col">' + E(s) + '</th>').join('') + '</tr></thead><tbody>' +
-      r.correlation.map((row, i) => '<tr><th scope="row">' + E(r.symbols[i]) + '</th>' + row.map(v => '<td style="background:color-mix(in srgb, var(--accent) ' + Math.round(Math.max(0, Math.abs(v == null ? 0 : v)) * 24) + '%, var(--surface))">' + (v == null ? '—' : CS.num(v, 2)) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<p class="cap">Correlation needs at least 60 shared daily returns.</p>';
+      r.correlation.map((row, i) => '<tr><th scope="row">' + E(r.symbols[i]) + '</th>' + row.map(v => '<td style="background:color-mix(in srgb, var(--accent) ' + Math.round(Math.max(0, Math.abs(v == null ? 0 : v)) * 24) + '%, var(--surface))">' + CS.dec(v, 2) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<p class="cap">Correlation needs at least 60 shared daily returns.</p>';
     out.innerHTML = '<p class="cap">' + E(r.basisLabel) + ' · ' + CS.date(r.startDate) + ' to ' + CS.date(r.endDate) + ' · ' + r.nReturns + ' shared daily returns · beta and correlation are versus ' + BENCH + '</p>' +
       '<div class="table-wrap"><table class="t"><caption class="sr-only">Return and risk by security over the common window</caption><thead><tr><th>Security</th><th class="r">Return</th><th class="r">Annualized</th><th class="r">Volatility</th><th class="r">Max drawdown</th><th class="r">Beta</th><th class="r">Corr. vs ' + BENCH + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="charts"><div class="card"><h3>Growth of 100</h3><div class="chart-box"><canvas id="chGrow" role="img" aria-label="Growth of 100 for each security"></canvas></div></div>' +
       '<div class="card"><h3>Drawdown</h3><div class="chart-box short"><canvas id="chDD" role="img" aria-label="Drawdown for each security"></canvas></div></div>' +
       '<div class="card"><h3>Correlation of daily returns</h3><p class="cap">1 = move together, 0 = unrelated, −1 = move oppositely.</p>' + corr + '</div></div>';
-    Chart.defaults.color = color('--text-2'); Chart.defaults.font.family = color('--font'); Chart.defaults.borderColor = color('--grid');
+    CS.chartDefaults();
     const labels = r.growth.dates.map(d => CS.date(d, r.growth.dates.length > 260 ? false : true));
     const ds = (src) => r.symbols.map((s, i) => ({ label: s, data: src[s], borderColor: colorOf(i), backgroundColor: colorOf(i), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.1 }));
-    const xAxis = { grid: { display: false }, ticks: { maxTicksLimit: window.innerWidth < 560 ? 4 : 7, autoSkip: true, maxRotation: 0 } };
-    mk('chGrow', { type: 'line', data: { labels, datasets: ds(r.growth.series) }, options: Object.assign(common(), { scales: { x: xAxis, y: { grid: { color: color('--grid') }, title: { display: true, text: 'Growth of 100' } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + CS.num(x.parsed.y, 2) }) } }) });
-    mk('chDD', { type: 'line', data: { labels, datasets: ds(r.drawdown) }, options: Object.assign(common(), { scales: { x: xAxis, y: { grid: { color: color('--grid') }, title: { display: true, text: '%' } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + CS.num(x.parsed.y, 1) + '%' }) } }) });
+    const xAxis = { grid: { display: false }, ticks: { maxTicksLimit: window.innerWidth < 560 ? 3 : 6, autoSkip: true, maxRotation: 0 } };
+    mk('chGrow', { type: 'line', data: { labels, datasets: ds(r.growth.series) }, options: Object.assign(common(), { scales: { x: xAxis, y: { grid: { color: color('--grid') }, title: { display: true, text: 'Growth of 100' } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + CS.dec(x.parsed.y, 2) }) } }) });
+    mk('chDD', { type: 'line', data: { labels, datasets: ds(r.drawdown) }, options: Object.assign(common(), { scales: { x: xAxis, y: { grid: { color: color('--grid') }, title: { display: true, text: '%' } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + CS.dec(x.parsed.y, 1) + '%' }) } }) });
   }
 
   /* ---------- fundamentals ---------- */
@@ -104,12 +104,12 @@
     const body = rows.map(([label, f]) => '<tr><th scope="row" class="nm" style="text-align:left;font-weight:500">' + label + '</th>' + cs.map((c, i) => { const a = A[i]; const r = a.latestFiscalYear == null ? {} : a.ratios[a.latestFiscalYear]; return '<td class="r">' + f(a, c, r) + '</td>'; }).join('') + '</tr>').join('');
     const warn = cs.map((c, i) => A[i].warnings.filter(w => w.code === 'NEGATIVE_EQUITY' || w.code === 'MISSING_METRICS').map(w => '<div class="banner warn"><span><b>' + E(c.ticker) + ':</b> ' + E(w.message) + '</span></div>').join('')).join('');
     const stale = cs.map(c => { const f = FundCalc.freshness(c, new Date().toISOString().slice(0, 10)); return f.stale && !c.synthetic ? '<div class="banner warn"><span><b>' + E(c.ticker) + '</b>: latest annual report filed ' + CS.date(f.latestFiled) + '; a newer one may exist.</span></div>' : ''; }).join('');
-    out.innerHTML = '<div class="notes">' + warn + stale + '</div><div class="table-wrap"><table class="t"><caption class="sr-only">Latest fiscal year ratios by company</caption><thead><tr><th>Latest fiscal year</th>' + cs.map(c => '<th class="r"><span class="tk">' + E(c.ticker) + '</span><br><small class="nm">' + E(c.name) + '</small></th>').join('') + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+    out.innerHTML = '<div class="notes">' + warn + stale + '</div><div class="table-wrap"><table class="t"><caption class="sr-only">Latest fiscal year ratios by company</caption><thead><tr><th>Metric</th>' + cs.map(c => '<th class="r"><span class="tk">' + E(c.ticker) + '</span><br><small class="nm">' + E(c.name) + '</small></th>').join('') + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
       '<div class="charts"><div class="card"><h3>Operating margin by fiscal year</h3><div class="chart-box short"><canvas id="chFdMargin" role="img" aria-label="Operating margin by fiscal year for each company"></canvas></div></div>' +
       '<div class="card"><h3>Revenue growth by fiscal year</h3><div class="chart-box short"><canvas id="chFdGrowth" role="img" aria-label="Revenue growth by fiscal year for each company"></canvas></div></div></div>';
     const years = Array.from(new Set([].concat(...A.map(a => a.years)))).sort((x, y) => x - y);
     const mkds = key => cs.map((c, i) => ({ label: c.ticker, data: years.map(y => (A[i].ratios[y] && A[i].ratios[y][key] != null ? A[i].ratios[y][key] * 100 : null)), borderColor: colorOf(i), backgroundColor: colorOf(i), borderWidth: 2, pointRadius: 3, tension: 0.1 }));
-    const opts = Object.assign(common(), { scales: { x: { grid: { display: false } }, y: { grid: { color: color('--grid') }, title: { display: true, text: '%' } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + (x.parsed.y == null ? 'not available' : CS.num(x.parsed.y, 1) + '%') }) } });
+    const opts = Object.assign(common(), { scales: { x: { grid: { display: false } }, y: { grid: { color: color('--grid') }, title: { display: true, text: '%' } } }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + (x.parsed.y == null ? 'not available' : CS.dec(x.parsed.y, 1) + '%') }) } });
     mk('chFdMargin', { type: 'line', data: { labels: years.map(y => 'FY' + y), datasets: mkds('operatingMargin') }, options: opts });
     mk('chFdGrowth', { type: 'line', data: { labels: years.map(y => 'FY' + y), datasets: mkds('revenueGrowth') }, options: opts });
   }

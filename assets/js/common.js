@@ -24,6 +24,7 @@
   const f2 = nf(2, 2); const f0 = nf(0, 0); const f1 = nf(1, 1);
   CS.money = v => (v == null ? '—' : '$' + f2.format(v));
   CS.num = (v, d) => (v == null ? '—' : nf(d, d).format(v));
+  CS.dec = (v, d) => (v == null ? '—' : (v < 0 && Math.round(Math.abs(v) * Math.pow(10, d == null ? 2 : d)) > 0 ? '−' : '') + CS.num(Math.abs(v), d == null ? 2 : d));   // true minus sign, like CS.pct
   CS.int = v => (v == null ? '—' : f0.format(Math.round(v)));
   const rnd = (v, d) => Math.round(Math.abs(v) * Math.pow(10, d)) / Math.pow(10, d);   // sign follows the rounded value
   CS.pct = (v, d) => { if (v == null) return '—'; d = d == null ? 2 : d; const r = rnd(v, d); return (r === 0 ? '' : v > 0 ? '+' : '−') + nf(d, d).format(r) + '%'; };
@@ -76,6 +77,14 @@
   CS.load = async function () {
     const [h, s] = await Promise.all([getText('data/history.csv'), getText('data/status.json')]);
     return { rows: Stats.parseHistory(h.text), status: JSON.parse(s.text), stale: h.stale || s.stale };
+  };
+  /* one look for every chart: quiet grid, 12px labels, round legend markers (series colours come from the --s1.. tokens) */
+  CS.chartDefaults = () => {
+    if (!window.Chart) return;
+    const C = window.Chart.defaults, v = CS.cssVar;
+    C.color = v('--muted'); C.font.family = v('--font'); C.font.size = 12; C.borderColor = v('--grid');
+    C.plugins.legend.labels.usePointStyle = true; C.plugins.legend.labels.boxWidth = 8; C.plugins.legend.labels.boxHeight = 8; C.plugins.legend.labels.color = v('--text-2');
+    C.elements.line.borderWidth = 2; C.elements.point.radius = 0; C.elements.point.hoverRadius = 4;
   };
   CS.loadingHtml = label => {
     setTimeout(() => document.querySelectorAll('.inline-loading .slow').forEach(e => { e.hidden = false; }), 8000);
@@ -131,7 +140,7 @@
   let scrollerCount = 0;
   const fixScrollers = () => document.querySelectorAll('.table-wrap:not([tabindex])').forEach(el => {
     const cap = el.querySelector('caption'); el.tabIndex = 0; el.setAttribute('role', 'region');
-    if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', (cap ? cap.textContent.trim() : 'Scrollable table') + (cap ? '' : ' ' + (++scrollerCount)));
+    if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', (cap ? cap.textContent.trim() + ' (scrollable)' : 'Scrollable table ' + (++scrollerCount)));
   });
   document.addEventListener('DOMContentLoaded', () => { fixScrollers(); new MutationObserver(fixScrollers).observe(document.body, { childList: true, subtree: true }); });
   if ('serviceWorker' in navigator) {

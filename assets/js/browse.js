@@ -71,7 +71,7 @@
     $('shortlist').innerHTML = ids.length ? ids.map(id => {
       const r = all.find(x => x.item_id === id); const dir = CS.dir(r.pct_change);
       return '<span class="sl"><b>' + CS.esc(id) + '</b>' + CS.money(r.price) + ' <span class="' + dir + '">' + (r.pct_change == null ? '' : CS.pct(r.pct_change)) + '</span></span>';
-    }).join('') : '<span class="empty">No ETFs saved yet. Press ☆ next to an ETF to add it.</span>';
+    }).join('') : '<span class="muted">None yet. Press ☆ next to an ETF to add it.</span>';
   }
 
   function bind() {
