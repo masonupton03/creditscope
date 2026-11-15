@@ -112,3 +112,20 @@ security, by type (ETF / stock / cash).
 5. Browser verification in demo mode and personal mode against the mock; privacy checks (no storage, no cache, no console errors).
 
 Not in this phase: SEC fundamentals (next public feature), CSV import, XIRR, risk contribution, target-weight drift.
+
+## Refinements added after review (2026-11-14)
+
+* **Ledger and existing holdings:** unchanged source of truth. Historical purchase dates and prices are entered as `buy` with
+  `external: true`; the "outside funding" section of the page and this document explain that such a buy counts as a deposit.
+* **Dividend reinvestment is explicit.** The page offers "Dividend + reinvestment" (a `dividend` and a cash-funded `buy` with
+  `reinvest: true`, linked by a `group`) and "Record dividends from market data as transactions". Nothing is reinvested automatically.
+* **Consistent comparison methodology.** The benchmark treats its own dividends the way the ledger does: `cash` (held, matches a
+  portfolio that keeps dividends), `reinvested` (matches a portfolio that reinvests), or `price` (both exclude dividends). `auto`
+  follows the ledger (any `reinvest` buy selects `reinvested`, otherwise `cash`); unknown dividend data forces `price`. Every number
+  is labelled with both treatments. Verified for all modes against `tests/ref_portfolio.py`.
+* **Timing is an approximation** (end-of-day flows at the traded price), stated on the page and above.
+* **Actual and effective dates.** The ledger keeps the date entered (weekend or holiday included); the engine returns an
+  `effectiveDate` (first trading day on or after) and a status per transaction, shown as "Applied on".
+* **Demo-safe views** (personal edition only, address-bar state, nothing stored): "Hide dollar amounts and share counts" (symbols,
+  weights and percentages stay, so it is not anonymous) and "Show the simulated sample instead" (no private data is loaded).
+* Out of scope, unchanged: tax lots, options, shorting, multiple currencies.

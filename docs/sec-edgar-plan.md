@@ -1,4 +1,25 @@
-# Plan: a public SEC EDGAR fundamentals section (not built yet)
+# SEC EDGAR fundamentals: plan and status
+
+**Status (2026-11-14, branch `feature/stock-explorer`, not merged, not deployed):** the whole pipeline and page are built and tested
+against simulated data. **No request has been sent to the SEC**, because the SEC asks every client to declare a contact address and
+none has been configured. What exists:
+
+| Piece | Where |
+|---|---|
+| Tag map, reducer (company facts to a compact annual file with filing references) | `fundamentals/concepts.py`, `fundamentals/reduce.py` |
+| Polite client (needs `SEC_USER_AGENT`, rejects placeholders, throttled to 5 requests/second, never prints the contact) | `fundamentals/sec.py` |
+| Build command | `python -m fundamentals build` (refuses to run without a configured contact) |
+| Simulated demo set (four fictional companies, labelled, no filing links) | `fundamentals/sample.py` -> `explorer/sec-sample/` |
+| Ratios, verified against an independent Python reference | `assets/js/fundamentals-calc.js`, `tests/ref_fundamentals.py` |
+| Page | `fundamentals.html`, `assets/js/fundamentals.js` (uses `explorer/sec/` when it has data, else the labelled sample) |
+| Example manual workflow (inactive) | `docs/fundamentals-workflow.example.yml` |
+
+**Contact address:** read from the environment variable `SEC_USER_AGENT` (a GitHub Actions secret in CI). It is never stored in the
+repository; a test fails if an email-like string appears in the fundamentals code or data, or if the owner's personal address
+appears anywhere. To switch real data on: create a project mailbox, add the secret, run the build, inspect the output, and approve
+publishing it.
+
+Original research notes follow.
 
 Goal: a **real, legally reusable** public section of the site: search real US companies and view their reported fundamentals
 (revenue, profit, margins, balance sheet, cash flow) with analytics. No price data, no API key, no visitor account.

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CreditScope · About</title>
+<meta name="description" content="What CreditScope is, how it works, where its data comes from, how every number is calculated and tested, and its limits.">
+<meta name="theme-color" content="#060a10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="stylesheet" href="assets/css/explorer.css">
+<script>try{var t=localStorage.getItem('creditscope.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+    <a class="link" href="index.html">Today</a>
+    <a class="link" href="browse.html">Browse</a>
+    <a class="link" href="trends.html">Trends</a>
+    <a class="link active" href="explorer.html" aria-current="true">Explorer</a>
+    <span class="spacer"></span>
+    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+  </div>
+</nav>
+<nav class="subnav" aria-label="Research tools"><div class="wrap"><span class="lab">Research</span><a href="explorer.html">Explorer</a><a href="fundamentals.html">Fundamentals</a><a href="compare.html">Compare</a><a href="portfolio.html">Portfolio</a><a href="platform.html" aria-current="page">About</a></div></nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">About the platform</div>
+    <h1>An investment research and analytics platform, built from scratch</h1>
+    <p class="lead">CreditScope started as an automated daily tracker of twelve stock and bond ETFs. It has grown into a small research platform: a data pipeline, security and company research, side-by-side comparison, and private portfolio analytics, with every calculation checked against an independent implementation.</p>
+  </div>
+</header>
+
+<main class="wrap about" id="main">
+  <section aria-labelledby="whatH">
+    <h2 id="whatH">What you can do here</h2>
+    <div class="grid-cards">
+      <a class="card" href="index.html"><h3>Today, Browse, Trends</h3><p>The original tracker: twelve ETFs collected every day by a GitHub Actions pipeline, with raw files, a rebuilt history, a daily GitHub Issue and an installable, offline-capable site.</p></a>
+      <a class="card" href="explorer.html"><h3>Explorer</h3><p>Search securities and see return, volatility, drawdown and a comparison with SPY, always labelled price return or total return.</p></a>
+      <a class="card" href="fundamentals.html"><h3>Fundamentals</h3><p>Revenue, profit, margins, balance sheet and cash flow from SEC filings, each figure linked to its filing, with growth and profitability ratios.</p></a>
+      <a class="card" href="compare.html"><h3>Compare</h3><p>Two to six securities over exactly the same dates and basis: growth of 100, volatility, beta, drawdowns, correlations; and company fundamentals side by side.</p></a>
+      <a class="card" href="portfolio.html"><h3>Portfolio</h3><p>A transaction ledger with cost basis, unrealized gains, allocation, time-weighted return against SPY, risk and concentration. Real holdings stay private; this page shows a simulated one.</p></a>
+    </div>
+  </section>
+
+  <section aria-labelledby="engH">
+    <h2 id="engH">What makes it different</h2>
+    <ul class="points">
+      <li><b>Independent validation.</b> Every financial calculation (returns, volatility, drawdown, beta, time-weighted return, ratios, comparisons) exists twice, in JavaScript for the browser and in a separately written Python reference, and automated tests require them to agree to within rounding. Hand-computed cases check the specification itself.</li>
+      <li><b>Honest about data.</b> Simulated data is labelled everywhere it appears. Price return and total return are never mixed. Missing data produces a blank and a notice, never a made-up number.</li>
+      <li><b>Privacy by design.</b> Real holdings and API credentials never enter the repository or the public site: they live in a private folder on the owner’s computer and are served to localhost only. No brokerage is connected and nothing can place a trade.</li>
+      <li><b>Licensing-aware.</b> Market-data providers restrict public display on free plans, so real prices are used privately and the public site uses simulated prices. The only real public data is from the SEC, whose filings may be reused.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="archH">
+    <h2 id="archH">Architecture</h2>
+    <div class="flow" role="img" aria-label="Data flows from sources through Python jobs into static files, then to the browser pages">
+      <div class="node"><b>Sources</b><span>Nasdaq quotes (daily ETF tracker)</span><span>SEC EDGAR company facts</span><span>Your own data account (private)</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node"><b>Python jobs</b><span>GitHub Actions daily pipeline</span><span>SEC fundamentals build</span><span>Local personal sync</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node"><b>Static files</b><span>Compressed raw data and history.csv</span><span>Reduced SEC JSON</span><span>Private files outside the repo</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="node"><b>Browser</b><span>Vanilla JavaScript, no build step</span><span>Chart.js, service worker, installable</span><span>All maths runs on your device</span></div>
+    </div>
+    <p>The site is plain HTML, CSS and JavaScript hosted on GitHub Pages. There is no server and no database; nothing you type is sent anywhere. The daily job rebuilds its history only from the stored raw files, opens a GitHub Issue each day, and a test suite runs on every push.</p>
+  </section>
+
+  <section aria-labelledby="dataH">
+    <h2 id="dataH">Data sources and what is public</h2>
+    <div class="table-wrap"><table class="t">
+      <caption class="sr-only">Data sources and their use</caption>
+      <thead><tr><th>Data</th><th>Source</th><th>Where it appears</th></tr></thead>
+      <tbody>
+        <tr><td>Twelve ETF quotes</td><td>Nasdaq public quote service, once a day</td><td>Today, Browse, Trends (public, delayed, for information only)</td></tr>
+        <tr><td>Company fundamentals</td><td>SEC EDGAR XBRL company facts (public domain; cited and linked)</td><td>Fundamentals and Compare (fictional demo companies until a live build is run)</td></tr>
+        <tr><td>Price history for research</td><td>Simulated by a seeded model on the public site; the owner’s own free data account in the private edition</td><td>Explorer, Compare, Portfolio: simulated publicly, real only on the owner’s computer</td></tr>
+        <tr><td>Portfolio holdings</td><td>Entered by hand</td><td>Private file only; the public page shows a simulated portfolio</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section aria-labelledby="fmH">
+    <h2 id="fmH">How the numbers are calculated</h2>
+    <p>Each page has a “how this is computed” section. In short:</p>
+    <ul class="points">
+      <li><b>Returns:</b> closes are split-adjusted, not dividend-adjusted. Price return = change in close; total return reinvests dividends on the ex-date: TRI<sub>t</sub> = TRI<sub>t−1</sub> × (Close<sub>t</sub> + Dividend<sub>t</sub>) ÷ Close<sub>t−1</sub>. Annualized only for windows of a year or more: (1 + R)<sup>365.25/days</sup> − 1.</li>
+      <li><b>Risk:</b> volatility = sample standard deviation of daily returns × √252; maximum drawdown with peak, trough and recovery dates; beta = covariance ÷ benchmark variance; correlation from the same returns. Minimum observation counts apply (20 and 60).</li>
+      <li><b>Portfolio:</b> time-weighted return chains daily returns after removing deposits and withdrawals (assumed at the close, an approximation); Modified Dietz weights flows by time invested; value change, contributions and investment gain are shown separately because a balance change is not a return.</li>
+      <li><b>Fundamentals:</b> growth, margins, return on equity and assets, debt-to-equity, free cash flow and CAGR, blank whenever a denominator is not positive.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="limH">
+    <h2 id="limH">Limits and honest caveats</h2>
+    <ul class="points">
+      <li>Educational project, not investment advice. Historical statistics do not predict the future.</li>
+      <li>Public prices on the research pages are simulated. Real prices from a free data account may come from a single exchange (IEX), so their volume is not market volume and is not shown.</li>
+      <li>Fundamentals cover annual reports and standard accounting tags only; foreign filers and company-specific tags are not included. Ratios are not adjusted for acquisitions, inflation or one-off items.</li>
+      <li>The portfolio model excludes taxes, tax lots, options, short positions and foreign currencies.</li>
+      <li>Daily data only; no intraday prices or real-time quotes.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="testH">
+    <h2 id="testH">Testing</h2>
+    <p>More than three hundred automated tests run on every push: pipeline and conversion tests for the original tracker; reducer, client and security tests for the SEC and private-data code; browser-independent calculation tests in Node; and cross-language agreement tests between each JavaScript calculation and its independent Python reference. Privacy tests scan the repository for credentials and personal data and check that private paths are ignored and never cached.</p>
+    <p><a href="https://github.com/masonupton03/creditscope">Read the source, tests and documentation on GitHub</a></p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>CreditScope</b> is a class project. Educational use only; nothing here is investment advice, and past performance does not predict future results.</p>
+    <p><a href="https://github.com/masonupton03/creditscope">Source code on GitHub</a></p>
+  </div>
+</footer>
+
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/common.js"></script>
+</body>
+</html>

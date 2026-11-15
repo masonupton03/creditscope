@@ -1,0 +1,104 @@
+"""python -m fundamentals build [--tickers AAPL,MSFT] [--out explorer/sec] [--universe FILE]
+
+Writes explorer/sec/index.json and explorer/sec/company/<TICKER>.json from live SEC data. Requires SEC_USER_AGENT.
+`python -m fundamentals sample` rebuilds the SIMULATED demo set in explorer/sec-sample (no network, no SEC data).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+from . import reduce as R
+from .sec import SecClient, SecError, user_agent_from_env
+
+ROOT = Path(__file__).resolve().parent.parent
+UNIVERSE = Path(__file__).resolve().parent / "universe.txt"
+SYMBOL = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,9}$")
+
+
+def write_json(path: Path, obj) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(obj, separators=(",", ":")) + "\n")
+    os.replace(tmp, path)
+
+
+def read_universe(path: Path = UNIVERSE) -> list:
+    out = []
+    for line in path.read_text().splitlines():
+        line = line.split("#")[0].strip().upper()
+        if line and SYMBOL.match(line):
+            out.append(line)
+    return list(dict.fromkeys(out))
+
+
+def build_index(companies: list, synthetic: bool, generated: str) -> dict:
+    entries = [{"s": c["ticker"], "n": c["name"], "t": "S", "x": "", "c": c["cik"], "f": c["latestFiled"], "e": c["latestPeriodEnd"]} for c in companies]
+    entries.sort(key=lambda e: e["s"])
+    return {"meta": {"synthetic": synthetic, "generated": generated, "count": len(entries),
+                     "source": "Simulated demonstration data (not SEC data)" if synthetic else "SEC EDGAR XBRL company facts"}, "entries": entries}
+
+
+def build(client: SecClient, tickers: list, out: Path, log=print) -> dict:
+    directory = client.tickers()
+    generated = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    done, skipped = [], {}
+    for t in tickers:
+        info = directory.get(t)
+        if not info:
+            skipped[t] = "not in the SEC ticker file"
+            continue
+        facts = client.company_facts(info["cik"])
+        if not facts:
+            skipped[t] = "no company facts published"
+            continue
+        c = R.reduce_company(facts, t, generated, False, info["name"])
+        if not c["metrics"]:
+            skipped[t] = "no annual us-gaap facts (foreign filer or no XBRL)"
+            continue
+        write_json(out / "company" / f"{t}.json", c)
+        done.append(c)
+        log(f"{t}: {len(c['metrics'])} metrics, latest period {c['latestPeriodEnd']}")
+    write_json(out / "index.json", build_index(done, False, generated))
+    return {"written": [c["ticker"] for c in done], "skipped": skipped}
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(prog="python -m fundamentals")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    b = sub.add_parser("build", help="fetch from the SEC (needs SEC_USER_AGENT)")
+    b.add_argument("--tickers"); b.add_argument("--universe", type=Path, default=UNIVERSE); b.add_argument("--out", type=Path, default=ROOT / "explorer" / "sec")
+    sub.add_parser("sample", help="rebuild the simulated demo set (no network)")
+    args = ap.parse_args(argv)
+    if args.cmd == "sample":
+        from . import sample
+        print(sample.write())
+        return 0
+    try:
+        ua = user_agent_from_env()
+    except SecError as e:
+        print(str(e), file=sys.stderr)
+        return 2
+    tickers = [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else read_universe(args.universe)
+    bad = [t for t in tickers if not SYMBOL.match(t)]
+    if bad:
+        print("invalid ticker(s): " + ", ".join(bad), file=sys.stderr)
+        return 2
+    try:
+        res = build(SecClient(ua), tickers, args.out)
+    except SecError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    print(f"Wrote {len(res['written'])} companies to {args.out}; skipped {len(res['skipped'])}.")
+    for t, why in res["skipped"].items():
+        print(f"  {t}: {why}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

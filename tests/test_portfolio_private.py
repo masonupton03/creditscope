@@ -218,3 +218,20 @@ def test_alpaca_series_carry_splits_for_the_dashboard():
     s = build.make_series("X", bars, [], [{"ex_date": "2024-06-03", "ratio": 4}], {"name": "X"})
     assert s["splits"] == [("2024-06-03", 4.0)] or s["splits"] == [["2024-06-03", 4.0]]
     assert build.make_series("X", bars, [], None, {"name": "X"})["splits"] is None
+
+
+# ------------------------------------------------------------ the other research pages through the personal server
+def test_personal_server_serves_the_new_pages_and_marks_only_those_that_use_private_prices(served):
+    for page, marked in (("compare.html", True), ("portfolio.html", True), ("explorer.html", True), ("fundamentals.html", False), ("platform.html", False)):
+        s, _, b = call(served, "GET", path="/" + page)
+        assert s == 200, page
+        assert (b'name="creditscope-personal"' in b) is marked, page
+    assert call(served, "GET", path="/explorer/sec-sample/index.json")[0] == 200
+    assert call(served, "GET", path="/explorer/sec/index.json")[0] == 200
+    assert call(served, "GET", path="/fundamentals/sec.py")[0] == 404                      # source code is never served
+    assert call(served, "GET", path="/tests/ref_finance.py")[0] == 404
+
+
+def test_public_pages_never_carry_the_personal_marker():
+    for f in ROOT.glob("*.html"):
+        assert 'creditscope-personal' not in f.read_text(), f.name

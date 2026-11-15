@@ -1,0 +1,34 @@
+# EXAMPLE ONLY: not active. GitHub runs workflows only from .github/workflows/, and this file is deliberately outside it.
+# Copy it to .github/workflows/fundamentals.yml ONLY after you approve it, and after you have:
+#   1. created a dedicated project mailbox (not a personal address),
+#   2. added the repository secret SEC_USER_AGENT  =  "CreditScope educational project <project-mailbox-address>"
+# The SEC asks automated clients to identify themselves; the secret keeps the address out of the repository, logs and output files.
+#
+# This workflow only builds explorer/sec/*.json and uploads them as an artifact for you to inspect. It does not commit, deploy,
+# or touch the assignment pipeline (daily.yml, pages.yml). Publishing the files is a separate decision.
+name: Build SEC fundamentals (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sec-fundamentals
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: python -m fundamentals build --out build/sec
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sec-fundamentals
+          path: build/sec
+          retention-days: 7

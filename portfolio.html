@@ -15,21 +15,22 @@
 <script>try{var t=localStorage.getItem('creditscope.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
 </head>
 <body>
+<a class="skip" href="#app">Skip to content</a>
 <div class="loading" id="loading"><div><div class="spinner"></div><div>Loading the portfolio…</div></div></div>
 
-<nav class="nav five" aria-label="Main">
+<nav class="nav" aria-label="Main">
   <div class="wrap">
     <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
     <a class="link" href="index.html">Today</a>
     <a class="link" href="browse.html">Browse</a>
     <a class="link" href="trends.html">Trends</a>
-    <a class="link" href="explorer.html">Explorer</a>
-    <a class="link active" href="portfolio.html" aria-current="page">Portfolio</a>
+    <a class="link active" href="explorer.html" aria-current="true">Explorer</a>
     <span class="spacer"></span>
     <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
     <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
   </div>
 </nav>
+<nav class="subnav" aria-label="Research tools"><div class="wrap"><span class="lab">Research</span><a href="explorer.html">Explorer</a><a href="fundamentals.html">Fundamentals</a><a href="compare.html">Compare</a><a href="portfolio.html" aria-current="page">Portfolio</a><a href="platform.html">About</a></div></nav>
 
 <header class="hero">
   <div class="wrap">
@@ -101,7 +102,7 @@
     </form>
     <div class="banner warn" id="txMsg" role="alert" hidden></div>
     <div class="ex-controls" id="divBar" hidden><button class="btn small" type="button" id="divBtn"></button><span class="cap" id="divCap"></span></div>
-    <div class="table-wrap"><table class="t" id="txTable"><thead><tr><th>Date entered</th><th>Applied on</th><th>Type</th><th>Symbol</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Amount</th><th></th></tr></thead><tbody id="txBody"></tbody></table></div>
+    <div class="table-wrap"><table class="t" id="txTable"><thead><tr><th>Date entered</th><th>Applied on</th><th>Type</th><th>Symbol</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Amount</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="txBody"></tbody></table></div>
   </section>
 
   <details class="box ex-method" id="method">

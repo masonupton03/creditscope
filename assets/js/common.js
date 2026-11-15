@@ -121,6 +121,13 @@
     });
     const yr = document.getElementById('year'); if (yr) yr.textContent = new Date().getFullYear();
   });
+  // keyboard users must be able to scroll wide tables: make each scroll container focusable and named
+  let scrollerCount = 0;
+  const fixScrollers = () => document.querySelectorAll('.table-wrap:not([tabindex])').forEach(el => {
+    const cap = el.querySelector('caption'); el.tabIndex = 0; el.setAttribute('role', 'region');
+    if (!el.getAttribute('aria-label')) el.setAttribute('aria-label', (cap ? cap.textContent.trim() : 'Scrollable table') + (cap ? '' : ' ' + (++scrollerCount)));
+  });
+  document.addEventListener('DOMContentLoaded', () => { fixScrollers(); new MutationObserver(fixScrollers).observe(document.body, { childList: true, subtree: true }); });
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => null); });
   }

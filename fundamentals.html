@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CreditScope · Fundamentals</title>
+<meta name="description" content="Search public companies and see revenue, profit, margins, balance sheet and cash flow from SEC filings, with links to the filings.">
+<meta name="theme-color" content="#060a10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="stylesheet" href="assets/css/explorer.css">
+<script>try{var t=localStorage.getItem('creditscope.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="loading" id="loading"><div><div class="spinner"></div><div>Loading…</div></div></div>
+
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+    <a class="link" href="index.html">Today</a>
+    <a class="link" href="browse.html">Browse</a>
+    <a class="link" href="trends.html">Trends</a>
+    <a class="link active" href="explorer.html" aria-current="true">Explorer</a>
+    <span class="spacer"></span>
+    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+  </div>
+</nav>
+<nav class="subnav" aria-label="Research tools"><div class="wrap"><span class="lab">Research</span><a href="explorer.html">Explorer</a><a href="fundamentals.html" aria-current="page">Fundamentals</a><a href="compare.html">Compare</a><a href="portfolio.html">Portfolio</a><a href="platform.html">About</a></div></nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Company fundamentals · SEC EDGAR</div>
+    <h1>What a company actually reported</h1>
+    <p class="lead" id="heroLead">Search a public company and see revenue, profit, margins, assets, debt and cash flow from its annual reports, with every reported figure linked to the SEC filing it came from.</p>
+    <div class="banner" id="dataBanner" role="status" hidden></div>
+    <div class="banner synth" id="synthBanner" role="note" hidden><span><b>Simulated demonstration.</b> The companies on this page are <b>fictional</b> and every number is generated; none of it is SEC data. Real filings appear here once the SEC data build has been run with a configured contact address. Filing links are disabled for simulated companies.</span></div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+  <section class="card ex-search" aria-label="Search companies">
+    <div class="box">
+      <span class="glass" aria-hidden="true">⌕</span>
+      <label for="q" class="sr-only">Search by ticker or company name</label>
+      <input class="input" id="q" type="search" role="combobox" aria-expanded="false" aria-controls="results" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="Search a company, e.g. a ticker or part of the name">
+      <ul class="ex-results" id="results" role="listbox" aria-label="Search results" hidden></ul>
+    </div>
+    <div class="examples" id="examples" aria-label="Examples"><span>Try:</span></div>
+  </section>
+  <section id="detail" aria-live="polite"></section>
+
+  <details class="box ex-method" id="method">
+    <summary>Where this data comes from, how ratios are computed, and the limits</summary>
+    <h3>Source and reuse</h3>
+    <p>Figures come from the SEC’s <b>XBRL “company facts”</b> data (<code>data.sec.gov</code>), which companies file with their annual reports. The SEC states that information on sec.gov is public and may be copied and distributed without its permission, and asks for citation; this site cites the SEC and links each figure to its filing. No account, API key or personal data is needed to view anything.</p>
+    <h3>What is included</h3>
+    <p>Annual (10-K) figures from the standard <b>us-gaap</b> tags, up to twelve fiscal years. Quarterly reports, non-standard (company-specific) tags and foreign filers that use IFRS are not included. The tag that supplied each number is stored with it; when a company changed tags over time, the first tag in a fixed priority list that has a value for the year is used.</p>
+    <h3>Restatements and fiscal years</h3>
+    <p>If a period was reported more than once (a restatement or a comparative in a later report) the <b>latest filed</b> value is shown and linked. A fiscal year is labelled by the year its period ends; a 52/53-week year ending in the first week of January is labelled with the previous year.</p>
+    <h3>Ratios</h3>
+    <div class="formula">Revenue growth = Revenue<sub>t</sub> ÷ Revenue<sub>t−1</sub> − 1 · Margin = metric ÷ Revenue · FCF = Operating cash flow − Capital expenditure</div>
+    <div class="formula">ROE = Net income ÷ average equity · ROA = Net income ÷ average assets · Debt-to-equity = Debt ÷ Equity · CAGR = (Revenue<sub>end</sub> ÷ Revenue<sub>start</sub>)<sup>1/years</sup> − 1</div>
+    <p>A ratio is left <b>blank</b> (never zero) when a number it needs is missing or its denominator is not positive, for example return on equity when equity is negative. Gross profit is revenue minus cost of revenue when no total was reported, and is marked as derived. “Debt” is long-term debt including its current portion where the company reports it.</p>
+    <h3>Freshness</h3>
+    <p>Each company shows the period end of its latest annual report, the date that report was filed, and when this data was compiled. A warning appears when the latest report is more than about fifteen months old. Data is a snapshot, not live.</p>
+    <h3>Limits</h3>
+    <p>Reported figures are not adjusted for inflation, acquisitions, accounting changes or one-off items. Companies differ in how they use tags, so cross-company comparisons need care. Educational tool, not investment advice.</p>
+  </details>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>CreditScope</b> is a class project. Educational use only; nothing here is investment advice, and past performance does not predict future results.</p>
+    <p><a href="https://github.com/masonupton03/creditscope">Source code on GitHub</a> · <a href="platform.html">Data sources, formulas and limits</a></p>
+  </div>
+</footer>
+
+<script src="assets/vendor/chart.umd.min.js"></script>
+<script src="assets/js/search.js"></script>
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/picker.js"></script>
+<script src="assets/js/fundamentals-calc.js"></script>
+<script src="assets/js/fundamentals.js"></script>
+</body>
+</html>

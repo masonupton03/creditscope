@@ -22,9 +22,9 @@ from urllib.parse import unquote, urlsplit
 from . import build, config, portfolio, service
 
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
-SITE_FILES = {"index.html", "browse.html", "trends.html", "explorer.html", "portfolio.html", "manifest.webmanifest", "sw.js",
+SITE_FILES = {"index.html", "browse.html", "trends.html", "explorer.html", "portfolio.html", "compare.html", "fundamentals.html", "platform.html", "manifest.webmanifest", "sw.js",
               "data/history.csv", "data/status.json"}
-SITE_PREFIXES = ("assets/", "explorer/sample/")
+SITE_PREFIXES = ("assets/", "explorer/sample/", "explorer/sec/", "explorer/sec-sample/")
 SERIES_FILE = re.compile(r"^series/[A-Z0-9][A-Z0-9.\-]{0,9}\.json$")
 
 
@@ -136,7 +136,7 @@ class Handler(BaseHTTPRequestHandler):
             body = resolved.read_bytes()
         except (OSError, ValueError):
             return self._json(404, {"error": "not found"}, private=private)
-        if not private and resolved.name in ("explorer.html", "portfolio.html"):
+        if not private and resolved.name in ("explorer.html", "portfolio.html", "compare.html"):
             # marks the page so it looks for private data; the public site and plain static servers never carry this marker
             body = body.replace(b"<head>", b'<head>\n<meta name="creditscope-personal" content="1">', 1)
         ctype = mimetypes.guess_type(str(resolved))[0] or "application/octet-stream"
