@@ -22,7 +22,7 @@ def listed_patterns():
                     pats.add(part)
                 elif "." in part and cur:
                     pats.add(f"{cur}/{part}")          # "`assets/js/today.js`, `browse.js`": a bare name shares the first path's folder
-                elif "." in part:
+                elif "." in part or part in ("LICENSE", "NOTICE"):      # files without an extension
                     pats.add(part)
     return pats
 
