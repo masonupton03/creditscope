@@ -96,3 +96,21 @@ The exact owner steps are in `docs/sec-activation.md`; `python3 -m fundamentals 
 - [ ] Recruiter-facing polish: pin the repository, add a short description, topics and the live link; use the About page as the
       project summary; add a simulated-data screenshot to the README.
 - [ ] Keep an eye on the daily runs until the final submission; submit the four-line file.
+
+## 9. Status snapshot for the first public SEC release (2026-11-15)
+
+Release scope decided by the owner: **Apple and Microsoft only**. Walmart and JPMorgan stay out until their printed-filing checks are finished.
+
+Done and verified on the branch (nothing published):
+- [x] Filing-level comparison of the four companies (`docs/sec-filing-verification.md`); AAPL verified, MSFT verified with disclosed limitations.
+- [x] Release set and hand-written verification statements in `fundamentals/curated.json`; each public profile shows source, latest fiscal period, refresh date, what was checked against the printed filing, what was **not** manually verified (all years before the prior year) and company limitations (Apple commercial paper, Microsoft finance leases and debt at carrying value).
+- [x] Walmart's derived gross profit is withheld rather than shown with a different definition (and would not be public in this release).
+- [x] Dependency and data-rights review (`docs/licensing-review.md`); no licence file added.
+
+Actions that need the owner (each is a separate approval):
+1. **Student ID** for the submission file.
+2. **Licence**: approve adding `LICENSE` (MIT, original code), `NOTICE` and `THIRD_PARTY_NOTICES.md` as drafted in `docs/licensing-review.md`; and decide the Nasdaq-data option there.
+3. **Publish the two companies**: I rebuild offline from the saved SEC responses (`python3 -m fundamentals build --release --offline --raw-dir ~/creditscope-sec-review-raw --out explorer/sec`), review the diff (two company files under 60 KB each plus `index.json`), run the suite, and commit on the branch. The raw responses never enter the repository.
+4. **Spot-check a few Apple and Microsoft figures on the printed filings** (the Microsoft, Walmart and JPMorgan statements were read from the filing's rendered statement pages, not the printed text).
+5. **Merge approval and timing** (merge commit, not squash; bring `main`'s daily data commits into the branch first; not while a scheduled run is in progress; not in the last days before the due date). Merging runs `pages.yml` and deploys.
+6. After deployment: section 5 checks against the live URL, including a real iPhone check (`docs/browser-compatibility.md`).

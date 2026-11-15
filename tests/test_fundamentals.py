@@ -559,3 +559,38 @@ def test_a_series_that_must_use_the_wider_equity_in_some_years_discloses_the_cha
         "StockholdersEquity": {"USD": [fact("2016-12-31", 50, accn="e-17-1")]},
         "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": {"USD": [fact("2015-12-31", 55, accn="e-16-1")]}}), "T")
     assert [r["tag"] for r in c["coverage"]["definitions"]["equity"]] == ["StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "StockholdersEquity"]
+
+
+# ---------------------------------------------------------------- release set, curated statements, suppressed gross profit
+def test_only_verified_companies_are_in_the_release_and_each_has_its_statements():
+    cur = cli.load_curated()
+    assert cur["release"] == ["AAPL", "MSFT"] and "WMT" not in cur["release"] and "JPM" not in cur["release"]
+    for t in cur["release"]:
+        c = cur["companies"][t]
+        v = c["verification"]
+        assert v["fiscalYear"] >= 2025 and re.match(r"\d{4}-\d{2}-\d{2}$", v["checkedOn"]) and re.match(r"\d{10}-\d{2}-\d{6}$", v["accn"])
+        assert "not been compared" in v["unverified"] or "not been" in v["unverified"]                    # never implies old years were checked
+        assert len(c["limitations"]) >= 2
+    assert "commercial paper" in " ".join(cur["companies"]["AAPL"]["limitations"]) and "finance lease" in " ".join(cur["companies"]["MSFT"]["limitations"])
+    assert not re.search(r"[\w.]+@[\w.]+\.\w+", json.dumps(cur))
+
+
+def test_build_attaches_curated_verification_only_to_listed_companies(mock, tmp_path, monkeypatch):
+    cur = {"release": ["AAA"], "companies": {"AAA": {"verification": {"fiscalYear": 2025}, "limitations": ["x", "y"]}}}
+    monkeypatch.setattr(cli, "load_curated", lambda path=None: cur)
+    cli.build(mock.client(sleep=lambda s: None), ["AAA", "BBB"], tmp_path, log=lambda m: None)
+    a = json.loads((tmp_path / "company" / "AAA.json").read_text())
+    assert a["verification"] == {"fiscalYear": 2025} and a["limitations"] == ["x", "y"]
+    assert "BBB" not in [p.stem for p in (tmp_path / "company").glob("*.json")] or "verification" not in json.loads((tmp_path / "company" / "BBB.json").read_text())
+
+
+def test_gross_profit_is_withheld_when_total_revenues_differ_from_net_sales():
+    tags = {"Revenues": {"USD": [fact("2025-01-31", 1000, start="2024-02-01", accn="r-1")]},
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {"USD": [fact("2025-01-31", 980, start="2024-02-01", accn="r-1")]},
+            "CostOfRevenue": {"USD": [fact("2025-01-31", 700, start="2024-02-01", accn="r-1")]}}
+    c = R.reduce_company(company(tags), "T")
+    assert "grossProfit" in c["coverage"]["suppressed"] and "net sales" in c["coverage"]["suppressed"]["grossProfit"]
+    same = dict(tags); same["RevenueFromContractWithCustomerExcludingAssessedTax"] = {"USD": [fact("2025-01-31", 1000, start="2024-02-01", accn="r-1")]}
+    assert R.reduce_company(company(same), "T")["coverage"]["suppressed"] == {}                         # same revenue: the derivation is the company's own
+    rep = dict(tags); rep["GrossProfit"] = {"USD": [fact("2025-01-31", 300, start="2024-02-01", accn="r-1")]}
+    assert R.reduce_company(company(rep), "T")["coverage"]["suppressed"] == {}                          # reported gross profit is used as filed

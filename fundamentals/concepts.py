@@ -67,3 +67,6 @@ MEANING = {
 # A company is analysed as a bank when it reports deposits or interest income AND has no cost of revenue and no operating income.
 BANK_FACT_TAGS = ("Deposits", "InterestAndDividendIncomeOperating", "InterestIncomeExpenseNet")
 BANK_NOT_MEANINGFUL = ("grossMargin", "operatingMargin", "fcf", "fcfMargin", "netDebt", "debtToEquity")
+
+# Concepts a company may use for NET SALES where its total revenues also include other income (see reduce.suppressed).
+NET_SALES_TAGS = ("RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet", "SalesRevenueGoodsNet")

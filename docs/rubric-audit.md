@@ -95,3 +95,19 @@ Browser check run 2026-11-15 against the current branch (which restyles these pa
 3. **Nasdaq terms:** the source is a public quote endpoint; its terms are restrictive for redistribution (see `docs/explorer-data-sources.md`). The site states that prices are delayed and for information only.
 4. **Install prompt** must be confirmed by the owner on a real device.
 5. **Merging the development branch** must re-run this audit (checklist in `docs/launch-checklist.md`).
+
+## Final re-verification (2026-11-15, 18:15 UTC, branch `feature/stock-explorer`)
+
+| Requirement | Evidence | Result |
+|---|---|---|
+| ≥ 7 distinct successful UTC run dates | `origin/main:data/status.json`: `days_with_success` = **2** (2026-11-14, 2026-11-15); `data/raw/` holds exactly those two dates; 12 of 12 sources ok in the latest run. Daily cron at 21:45 UTC; the 3rd date arrives 2026-11-16. The earliest 7th date is **2026-11-20**; ample margin before 2026-12-03 | **Not yet met (2 of 7)**: on track, depends only on the schedule continuing |
+| Last successful run within 48 h of the due date | due date 2026-12-03 per notes (confirm on Blackboard); runs continue daily | pending until the final days |
+| GitHub Actions behaviour | `gh run list --workflow daily.yml`: schedule run 2026-11-15 01:19 UTC success (the first scheduled run fired about 3.5 h after the cron time), four manual dispatches on 2026-11-14 all success, same-day reruns left one day in history. `tests.yml` green on every branch push | Satisfied |
+| Daily GitHub Issue | #1 (2026-11-14) closed, #2 (2026-11-15) open: one open issue per day, previous closed | Satisfied |
+| Raw data preserved, history rebuilt from raw only | `git archive origin/main data` into a new empty folder, `history.csv` deleted, `python -m creditscope --root <folder> build`: output SHA-256 `5813c875…f7837`, 25 lines (header + 24 rows), identical to the committed file | Satisfied |
+| Pipeline and workflows unchanged | `git diff origin/main --stat -- creditscope .github` is empty | Satisfied |
+| README lists every tracked file | `tests/test_readme.py` (also checks the assignment sections) | Satisfied |
+| Required pages and data behaviour | `scripts/browser-audit/required-pages.js` 22/22 in Chrome, Firefox and WebKit | Satisfied |
+| PWA / offline | offline check (prime, stop server, reopen) passed in Chrome, Firefox and WebKit on 2026-11-15; manifest with 192/512 icons, standalone display, service worker `creditscope-v9`. The offline and privacy scripts were last run before the SEC changes; no file they exercise has changed since (`git diff` of CSS, portfolio and shared JS, `sw.js`, the three required pages and the pipeline against that commit is empty) | Satisfied; install prompt on a real device not tested |
+| Tests | 337 pytest, 71 Node tests; browser regression 96/96 in each of three engines | Passing |
+| Submission file | four lines: name, **student ID (not yet provided)**, repository URL `https://github.com/masonupton03/creditscope`, site URL `https://masonupton03.github.io/creditscope/` | **Blocked on the student ID** |

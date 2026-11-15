@@ -44,6 +44,13 @@ def build_index(companies: list, synthetic: bool, generated: str) -> dict:
                      "source": "Simulated demonstration data (not SEC data)" if synthetic else "SEC EDGAR XBRL company facts"}, "entries": entries}
 
 
+CURATED = Path(__file__).resolve().parent / "curated.json"
+
+
+def load_curated(path: Path = CURATED) -> dict:
+    return json.loads(path.read_text())
+
+
 def build(client, tickers: list, out: Path, log=print, raw_dir: Path = None, offline: bool = False) -> dict:
     """Fetch (or, with offline=True, re-read the copies saved in raw_dir) and reduce. raw_dir keeps the SEC responses OUTSIDE the
     repository so a rule change can be re-run, and a surprising figure explained, without contacting the SEC again."""
@@ -71,6 +78,9 @@ def build(client, tickers: list, out: Path, log=print, raw_dir: Path = None, off
             skipped[t] = "no company facts published"
             continue
         c = R.reduce_company(facts, t, generated, False, info["name"])
+        cur = load_curated()["companies"].get(t)
+        if cur:                                                    # hand-written verification and limitations travel with the company file
+            c["verification"], c["limitations"] = cur["verification"], cur["limitations"]
         if not c["metrics"]:
             skipped[t] = "no annual us-gaap facts (foreign filer or no XBRL)"
             continue
@@ -189,6 +199,7 @@ def main(argv=None) -> int:
     b = sub.add_parser("build", help="fetch from the SEC (needs SEC_USER_AGENT)")
     b.add_argument("--raw-dir", type=Path, help="save the SEC responses here (outside the repository)")
     b.add_argument("--offline", action="store_true", help="rebuild from the responses saved in --raw-dir; makes no request")
+    b.add_argument("--release", action="store_true", help="build only the companies approved for publication (fundamentals/curated.json)")
     b.add_argument("--tickers"); b.add_argument("--universe", type=Path, default=UNIVERSE); b.add_argument("--out", type=Path, default=ROOT / "explorer" / "sec")
     sub.add_parser("sample", help="rebuild the simulated demo set (no network)")
     v = sub.add_parser("verify", help="cross-check a built company through another SEC endpoint and write a manual checklist (needs SEC_USER_AGENT)")
@@ -210,7 +221,7 @@ def main(argv=None) -> int:
         if not args.raw_dir:
             print("--offline needs --raw-dir", file=sys.stderr)
             return 2
-        tickers = [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else read_universe(args.universe)
+        tickers = load_curated()["release"] if args.release else [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else read_universe(args.universe)
         res = build(None, tickers, args.out, raw_dir=args.raw_dir, offline=True)
         print(f"Rebuilt {len(res['written'])} companies from saved responses (no request made); skipped {len(res['skipped'])}.")
         return 0
@@ -225,7 +236,7 @@ def main(argv=None) -> int:
         return 2
     if args.cmd == "verify":
         return run_verify(args, ua)
-    tickers = [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else read_universe(args.universe)
+    tickers = load_curated()["release"] if args.release else [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else read_universe(args.universe)
     bad = [t for t in tickers if not SYMBOL.match(t)]
     if bad:
         print("invalid ticker(s): " + ", ".join(bad), file=sys.stderr)

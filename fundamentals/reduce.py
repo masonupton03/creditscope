@@ -221,6 +221,20 @@ def definition_changes(metrics: dict) -> dict:
     return out
 
 
+def suppressed(company: dict, metrics: dict) -> dict:
+    """Figures deliberately not shown because deriving them would be misleading. Gross profit is derived as revenue minus cost of revenue only when
+    that equals the company's own basis. If the company also reports a separate net-sales concept that differs from the revenue used (a retailer whose
+    total revenues include membership and other income), the derived figure would not be the company's gross profit, so it is withheld."""
+    if "grossProfit" in metrics or "costOfRevenue" not in metrics or "revenue" not in metrics:
+        return {}
+    rev = {p["end"]: p["val"] for p in metrics["revenue"]["points"]}
+    for tag in C.NET_SALES_TAGS:
+        sales = {k[-1]: f["val"] for k, f in _annual(_facts(company, tag, "USD"), "duration").items()}
+        if any(end in sales and sales[end] != v for end, v in rev.items()):
+            return {"grossProfit": f"Reported revenue differs from the company's net sales ({tag}), so revenue minus cost of revenue would not be the company's own gross profit. Gross profit and gross margin are not shown."}
+    return {}
+
+
 def profile(company: dict, metrics: dict) -> dict:
     banky = [t for t in C.BANK_FACT_TAGS if _facts(company, t, "USD")]
     if banky and "costOfRevenue" not in metrics and "operatingIncome" not in metrics:
@@ -268,6 +282,7 @@ def reduce_company(company: dict, ticker: str, generated: str = None, synthetic:
         metrics = {k: m for k, m in metrics.items() if m["points"]}
     defs = definition_changes(metrics)
     prof = profile(company, metrics)
+    supp = suppressed(company, metrics)
     filed = [p["filed"] for m in metrics.values() for p in m["points"] if p.get("filed")]
     ends = [p["end"] for m in metrics.values() for p in m["points"]]
     cik = int(company.get("cik", 0))
@@ -277,6 +292,6 @@ def reduce_company(company: dict, ticker: str, generated: str = None, synthetic:
         "generated": generated or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "latestFiled": max(filed) if filed else None, "latestPeriodEnd": max(ends) if ends else None, "metrics": metrics,
         "profile": prof["profile"], "profileReason": prof["profileReason"],
-        "coverage": coverage(metrics, stale, defs), "checks": quality_checks(metrics, stale, defs),
+        "coverage": dict(coverage(metrics, stale, defs), suppressed=supp), "checks": quality_checks(metrics, stale, defs),
         "reducerVersion": REDUCER_VERSION, "sourceDigest": source_digest(company),
     }

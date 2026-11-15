@@ -136,6 +136,27 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('bank page: no console errors', p.errs.length === 0, p.errs.join('|'));
     await p.close();
   }
+  // ---- provenance box (verification, refresh date, limitations) and withheld gross profit, on a faked non-simulated company
+  {
+    const p = await newPage();
+    const demo = JSON.parse(fs.readFileSync(require.resolve('./../../explorer/sec-sample/company/DEMA.json'), 'utf8'));
+    const real = JSON.parse(JSON.stringify(demo)); real.synthetic = false; real.name = 'Test Retail Inc';
+    real.verification = { fiscalYear: 2024, periodEnd: '2024-12-31', checkedOn: '2026-11-15', accn: '0000000000-25-000001', scope: 'Fiscal 2024 and 2023 were compared with the printed Form 10-K.', unverified: 'Fiscal years before 2023 have not been compared with the printed filings.' };
+    real.limitations = ['Debt excludes commercial paper.', 'Capital expenditure excludes finance leases.'];
+    delete real.metrics.grossProfit; real.coverage.suppressed = { grossProfit: 'Reported revenue differs from net sales, so gross profit is not shown.' };
+    await p.route('**/explorer/sec-sample/company/DEMA.json', r => r.fulfill({ json: real }));
+    await p.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await p.waitForSelector('.fd-table');
+    const prov = await p.textContent('#provenance');
+    ok('provenance: source, latest period, refresh date, verification scope and what is NOT verified are all stated', /Source:/.test(prov) && /Latest fiscal period:/.test(prov) && /Data refreshed:/.test(prov) && /compared with the printed Form 10-K/.test(prov) && /Not manually verified:.*have not been compared/.test(prov));
+    ok('provenance: company limitations are listed', /Debt excludes commercial paper/.test(prov) && /finance leases/.test(prov));
+    ok('withheld gross profit: no gross profit row, no gross margin row, reason given, tile says so', !/Gross profit|Gross margin/.test(await p.textContent('.fd-table')) && /Gross profit and gross margin|gross profit is not shown/i.test(prov) && /Gross margin not shown/.test(await p.textContent('#detail')));
+    ok('provenance: no console errors', p.errs.length === 0, p.errs.join('|'));
+    await p.close();
+    const q = await newPage();
+    await q.goto(BASE + 'fundamentals.html#DEMB', { waitUntil: 'networkidle' }); await q.waitForSelector('.fd-table');
+    ok('simulated company has no provenance box (it carries the simulated banner instead)', (await q.locator('#provenance').count()) === 0 && await q.isVisible('#synthBanner'));
+    await q.close();
+  }
   // ---- mobile overflow at several widths on every page
   for (const w of [320, 360, 390, 768]) {
     const p = await newPage(w);

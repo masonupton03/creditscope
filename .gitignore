@@ -26,3 +26,6 @@ portfolio.json.tmp
 holdings*.json
 transactions*.csv
 !explorer/sample/portfolio.json
+
+# Dependencies installed for the optional browser audits (never committed)
+node_modules/

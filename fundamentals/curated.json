@@ -1,0 +1,32 @@
+{
+  "release": ["AAPL", "MSFT"],
+  "note": "Hand-written statements about what was checked and what the figures do and do not mean. Only companies listed in 'release' are published. Written 2026-11-15 from docs/sec-filing-verification.md; update both together.",
+  "companies": {
+    "AAPL": {
+      "verification": {
+        "fiscalYear": 2026, "periodEnd": "2026-09-26", "checkedOn": "2026-11-15", "accn": "0000320193-26-000026",
+        "scope": "Fiscal 2026 and fiscal 2025 (the comparative column) were compared with the printed Form 10-K: revenue, cost of sales, operating income, net income, total assets, liabilities, equity, cash, operating cash flow, capital expenditure and debt. Every compared figure matched.",
+        "unverified": "Fiscal years before 2025 come from the SEC's structured data and passed automatic checks only; they have not been compared with the printed filings."
+      },
+      "limitations": [
+        "Debt is term debt, current and non-current (78,114 million at 26 Sep 2026). It excludes commercial paper (1,997 million); with it the total would be 80,111 million.",
+        "Apple's fiscal year ends on the last Saturday of September and is sometimes 53 weeks; the weeks are shown under the year heading.",
+        "Net margin, return and growth figures are calculated by CreditScope from the reported amounts and are not Apple's own measures."
+      ]
+    },
+    "MSFT": {
+      "verification": {
+        "fiscalYear": 2026, "periodEnd": "2026-06-30", "checkedOn": "2026-11-15", "accn": "0001193125-26-323660",
+        "scope": "Fiscal 2026 and fiscal 2025 (the comparative column) were compared with the filing's financial statements (read from the filing's rendered statement pages): revenue, cost of revenue, operating income, net income, total assets, liabilities, equity, cash, operating cash flow, capital expenditure and debt. Every compared figure matched.",
+        "unverified": "Fiscal years before 2025 come from the SEC's structured data and passed automatic checks only; they have not been compared with the printed filings."
+      },
+      "limitations": [
+        "Capital expenditure is cash paid for property and equipment (115,948 million in fiscal 2026). It excludes 24,608 million of assets obtained under finance leases (a non-cash item), so free cash flow does not deduct them.",
+        "Debt is the carrying amount of total debt including the current portion (40,294 million), not its face value (46,136 million).",
+        "Fiscal 2015 operating cash flow is Microsoft's 'from continuing operations' figure, because that year was reported under a different concept; later years are total operating cash flow.",
+        "Microsoft's fiscal year ends on 30 June, so fiscal 2026 ended in calendar 2026 and covers July 2025 to June 2026.",
+        "Margins, returns and growth rates are calculated by CreditScope from the reported amounts and are not Microsoft's own measures."
+      ]
+    }
+  }
+}
