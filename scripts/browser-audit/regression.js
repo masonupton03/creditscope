@@ -8,19 +8,22 @@ const BASE = process.argv[2] || 'http://127.0.0.1:8801/';
 const axeSource = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 const results = []; const fail = [];
 const ok = (name, cond, detail) => { results.push((cond ? 'PASS ' : 'FAIL ') + name + (cond || !detail ? '' : ' :: ' + detail)); if (!cond) fail.push(name); };
-const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL', 'fundamentals.html#DEMA', 'compare.html#s=AAPL,MSFT,TLT&p=1Y&f=DEMA,DEMB', 'portfolio.html', 'platform.html'];
+const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL', 'fundamentals.html#MSFT', 'compare.html#s=AAPL,MSFT,TLT&p=1Y&f=AAPL,MSFT', 'portfolio.html', 'platform.html'];
 
 (async () => {
   const b = await chromium.launch();
+  // The published SEC set (AAPL, MSFT) hides the fictional demonstration set. Tests that need the fictional companies, or fakes built from them, switch the page to demonstration mode by serving the empty placeholder index.
+  const sample = p => p.route('**/explorer/sec/index.json', r => r.fulfill({ json: { meta: { synthetic: false, available: false }, entries: [] } }));
   const newPage = async (w, scheme) => { const ctx = await b.newContext({ viewport: { width: w || 1280, height: 900 }, colorScheme: scheme || 'dark', serviceWorkers: 'block' }); /* a service worker would bypass page.route fakes */ const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('console', m => m.type() === 'error' && p.errs.push(m.text())); return p; };
 
   // ---- cross-page navigation: links appear only when the target has data, and explain why not
   {
     const p = await newPage();
-    await p.goto(BASE + 'explorer.html#AAPL', { waitUntil: 'networkidle' });
+    await p.goto(BASE + 'explorer.html#NVDA', { waitUntil: 'networkidle' });
     ok('explorer: links bar present', await p.isVisible('#xlinks'));
     const off = await p.locator('#xlinks .off').first().getAttribute('title');
-    ok('explorer: fundamentals link is disabled with a reason for a ticker with no filings', /No SEC financial statements for AAPL/.test(off || ''), off);
+    ok('explorer: fundamentals link is disabled with a reason for a ticker with no filings', /No SEC financial statements for NVDA/.test(off || ''), off);
+    await sample(p);
     await p.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' });
     const off2 = await p.locator('#xlinks .off').first().getAttribute('title');
     ok('fundamentals: price link is disabled with a reason for a fictional company', /No price history for DEMA/.test(off2 || ''), off2);
@@ -28,12 +31,9 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('fundamentals: no console errors', p.errs.length === 0, p.errs.join('|'));
     await p.close();
   }
-  // a ticker present in both data sets: links enabled and they round-trip (the SEC index is faked here for this test only)
+  // a ticker present in both data sets (AAPL has simulated prices and real SEC fundamentals): links are enabled and round-trip
   {
     const p = await newPage();
-    const demo = JSON.parse(fs.readFileSync(require.resolve('./../../explorer/sec-sample/company/DEMA.json'), 'utf8'));
-    await p.route('**/explorer/sec/index.json', r => r.fulfill({ json: { meta: { synthetic: true }, entries: [{ s: 'AAPL', n: 'Linked Test Co', t: 'S', x: '' }] } }));
-    await p.route('**/explorer/sec/company/AAPL.json', r => r.fulfill({ json: Object.assign({}, demo, { ticker: 'AAPL', name: 'Linked Test Co' }) }));
     await p.goto(BASE + 'explorer.html#AAPL', { waitUntil: 'networkidle' });
     await p.click('#xlinks a:has-text("Fundamentals")'); await p.waitForLoadState('networkidle');
     ok('round trip: explorer to fundamentals keeps the ticker', /fundamentals\.html#AAPL/.test(p.url()) && /AAPL/.test(await p.textContent('#detail h2')));
@@ -41,6 +41,13 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('round trip: fundamentals to explorer keeps the ticker', /explorer\.html#AAPL/.test(p.url()) && /AAPL/.test(await p.textContent('#detail h2')));
     await p.click('#xlinks a:has-text("Compare prices")'); await p.waitForLoadState('networkidle');
     ok('compare opens with the ticker and a reference', /compare\.html#s=AAPL,SPY/.test(p.url()) && (await p.locator('#chosen li').count()) === 2);
+    const prov = await (async () => { await p.goto(BASE + 'fundamentals.html#AAPL', { waitUntil: 'networkidle' }); await p.waitForSelector('#provenance'); return p.textContent('#provenance'); })();
+    ok('real AAPL profile: source, period, refresh date, verification, what is not verified, and the commercial paper limitation', /SEC EDGAR/.test(prov) && /FY2026 ended/.test(prov) && /Data refreshed/.test(prov) && /compared with the printed Form 10-K/.test(prov) && /Not manually verified/.test(prov) && /commercial paper/.test(prov), prov.slice(0, 200));
+    await p.goto(BASE + 'fundamentals.html#MSFT', { waitUntil: 'networkidle' }); await p.waitForSelector('#provenance');
+    ok('real MSFT profile: finance lease limitation and the operating cash flow definition are stated', /finance leases/.test(await p.textContent('#provenance')) && /continuing operations/.test(await p.textContent('#provenance')));
+    await p.goto(BASE + 'fundamentals.html#WMT', { waitUntil: 'networkidle' });
+    ok('Walmart and JPMorgan are not in the public release', /No fundamentals for WMT/.test(await p.textContent('#detail')));
+    ok('real profiles: no console errors', p.errs.length === 0, p.errs.join('|'));
     await p.close();
   }
   // ---- theme: light by default (even on a dark-mode computer), dark on request, remembered across pages
@@ -67,7 +74,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
   }
   // ---- loading, error and empty states
   {
-    const p = await newPage();
+    const p = await newPage(); await sample(p);
     await p.route('**/explorer/sec-sample/company/DEMB.json', async r => { await new Promise(x => setTimeout(x, 1500)); r.continue(); });
     await p.goto(BASE + 'fundamentals.html', { waitUntil: 'networkidle' });
     await p.evaluate(() => { location.hash = 'DEMB'; });
@@ -94,7 +101,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
   // ---- Fundamentals table on a phone: latest six years by default, all years on request, newest year always visible; charts paint
   {
     const p = await newPage(390);
-    await p.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await p.waitForSelector('.fd-table');
+    await p.goto(BASE + 'fundamentals.html#MSFT', { waitUntil: 'networkidle' }); await p.waitForSelector('.fd-table');
     const heads = () => p.$$eval('.fd-table thead th.r', t => t.map(x => ({ y: x.textContent.slice(0, 6), shown: !!(x.offsetWidth || x.offsetHeight) })));
     let h = await heads(); const total = h.length, shown = h.filter(x => x.shown).length;
     ok('fundamentals phone: the data holds more than six years and six are shown by default', total > 6 && shown === 6, total + ' in the table, ' + shown + ' shown');
@@ -104,7 +111,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     await p.click('#fdAllYears'); h = await heads(); ok('fundamentals phone: the button collapses back to six', h.filter(x => x.shown).length === 6);
     await p.close();
     const d = await newPage(1280);
-    await d.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await d.waitForSelector('.fd-table');
+    await d.goto(BASE + 'fundamentals.html#MSFT', { waitUntil: 'networkidle' }); await d.waitForSelector('.fd-table');
     ok('fundamentals desktop: every year is shown and the toggle is hidden', (await d.$$eval('.fd-table thead th.r', t => t.every(x => x.offsetWidth > 0))) && !(await d.isVisible('#fdAllYears')));
     await d.waitForTimeout(600);
     const painted = await d.evaluate(() => Array.from(document.querySelectorAll('canvas')).map(c => { const g = c.getContext('2d'); const a = g.getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < a.length; i += 4) if (a[i]) return true; return false; }));
@@ -126,7 +133,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     pts.forEach((q, i) => { q.tag = i < n - 3 ? 'CashAndDueFromBanks' : 'CashAndCashEquivalentsAtCarryingValue'; });
     bank.coverage.definitions = { cash: [{ meaning: 'cash and due from banks (a narrower item that banks report)', tag: 'CashAndDueFromBanks', fromFy: pts[0].fy, toFy: pts[n - 4].fy }, { meaning: 'cash and cash equivalents', tag: 'CashAndCashEquivalentsAtCarryingValue', fromFy: pts[n - 3].fy, toFy: pts[n - 1].fy }] };
     bank.coverage.stale = { debt: { label: 'Debt', lastFy: 2013, tag: 'LongTermDebt', val: 267889e6, unit: 'USD', filed: '2014-02-28', accn: '0000000000-14-000001', companyLatestFy: pts[n - 1].fy } };
-    await p.route('**/explorer/sec-sample/company/DEMA.json', r => r.fulfill({ json: bank }));
+    await sample(p); await p.route('**/explorer/sec-sample/company/DEMA.json', r => r.fulfill({ json: bank }));
     await p.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await p.waitForSelector('.fd-table');
     const t = await p.textContent('#detail');
     ok('bank: analysed-as-a-bank notice and net-revenue wording', /Analysed as a bank/.test(t) && /Net revenue/.test(t));
@@ -144,7 +151,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     real.verification = { fiscalYear: 2024, periodEnd: '2024-12-31', checkedOn: '2026-11-15', accn: '0000000000-25-000001', scope: 'Fiscal 2024 and 2023 were compared with the printed Form 10-K.', unverified: 'Fiscal years before 2023 have not been compared with the printed filings.' };
     real.limitations = ['Debt excludes commercial paper.', 'Capital expenditure excludes finance leases.'];
     delete real.metrics.grossProfit; real.coverage.suppressed = { grossProfit: 'Reported revenue differs from net sales, so gross profit is not shown.' };
-    await p.route('**/explorer/sec-sample/company/DEMA.json', r => r.fulfill({ json: real }));
+    await sample(p); await p.route('**/explorer/sec-sample/company/DEMA.json', r => r.fulfill({ json: real }));
     await p.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await p.waitForSelector('.fd-table');
     const prov = await p.textContent('#provenance');
     ok('provenance: source, latest period, refresh date, verification scope and what is NOT verified are all stated', /Source:/.test(prov) && /Latest fiscal period:/.test(prov) && /Data refreshed:/.test(prov) && /compared with the printed Form 10-K/.test(prov) && /Not manually verified:.*have not been compared/.test(prov));
@@ -152,7 +159,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('withheld gross profit: no gross profit row, no gross margin row, reason given, tile says so', !/Gross profit|Gross margin/.test(await p.textContent('.fd-table')) && /Gross profit and gross margin|gross profit is not shown/i.test(prov) && /Gross margin not shown/.test(await p.textContent('#detail')));
     ok('provenance: no console errors', p.errs.length === 0, p.errs.join('|'));
     await p.close();
-    const q = await newPage();
+    const q = await newPage(); await sample(q);
     await q.goto(BASE + 'fundamentals.html#DEMB', { waitUntil: 'networkidle' }); await q.waitForSelector('.fd-table');
     ok('simulated company has no provenance box (it carries the simulated banner instead)', (await q.locator('#provenance').count()) === 0 && await q.isVisible('#synthBanner'));
     await q.close();

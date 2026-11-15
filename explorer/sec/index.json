@@ -1,1 +1,1 @@
-{"meta":{"synthetic":false,"available":false,"source":"SEC EDGAR XBRL company facts","note":"Placeholder: no SEC data has been built yet. Run python -m fundamentals build (needs SEC_USER_AGENT)."},"entries":[]}
+{"meta":{"synthetic":false,"generated":"2026-11-15T18:29:15Z","count":2,"source":"SEC EDGAR XBRL company facts"},"entries":[{"s":"AAPL","n":"Apple Inc.","t":"S","x":"","c":320193,"f":"2026-11-03","e":"2026-09-26"},{"s":"MSFT","n":"MICROSOFT CORP","t":"S","x":"","c":789019,"f":"2026-07-29","e":"2026-06-30"}]}

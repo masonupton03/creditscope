@@ -1,0 +1,65 @@
+# Third-party notices
+
+CreditScope ships one third-party library to visitors of the website. Its licence requires its copyright and permission notice to be included,
+which is done here. The library is unmodified and is vendored (copied into the repository) so that pages need no external requests.
+
+## Chart.js 4.4.7
+
+File: `assets/vendor/chart.umd.min.js`. Project: https://www.chartjs.org. The file header reads "(c) 2024 Chart.js Contributors. Released under the MIT License".
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2024 Chart.js Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## @kurkle/color 0.3.2 (bundled inside Chart.js)
+
+Included in `assets/vendor/chart.umd.min.js`. Project: https://github.com/kurkle/color. The bundled header reads "(c) 2023 Jukka Kurkela. Released under the MIT License".
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2023 Jukka Kurkela
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Tools that are not distributed
+
+pytest (MIT) runs the tests. axe-core (MPL-2.0) and Playwright (Apache-2.0) are used by the optional browser audits in `scripts/browser-audit/`, are installed
+locally with `npm install`, and are never committed or served. They are listed here for completeness only.

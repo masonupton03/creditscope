@@ -4,7 +4,7 @@
 const chromium = require('./launch');
 const fs = require('fs');
 const [BASE, OUT] = [process.argv[2] || 'http://127.0.0.1:8801/', process.argv[3] || '.'];
-const PAGES = { today: 'index.html', explorer: 'explorer.html#MSFT&p=1Y', fundamentals: 'fundamentals.html#DEMA', compare: 'compare.html#s=AAPL,MSFT,TLT&p=1Y&f=DEMA,DEMB', portfolio: 'portfolio.html' };
+const PAGES = { today: 'index.html', explorer: 'explorer.html#MSFT&p=1Y', fundamentals: 'fundamentals.html#MSFT', compare: 'compare.html#s=AAPL,MSFT,TLT&p=1Y&f=AAPL,MSFT', portfolio: 'portfolio.html' };
 const SIZES = { desktop: { width: 1280, height: 900 }, mobile: { width: 390, height: 844 } };
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

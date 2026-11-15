@@ -129,7 +129,7 @@
     else $('synthBanner').hidden = false;
     $('fdSynth').hidden = !fdSynth;
     $('pxCap').textContent = (personal ? 'Real prices from your private data · ' : '') + CS.int(priceIndex.length) + ' securities' + (priceMeta.asOf ? ' · prices through ' + CS.date(priceMeta.asOf) : '');
-    $('fdCap').textContent = fdSynth ? '' : 'Reported annual figures from SEC filings.';
+    $('fdCap').textContent = fdSynth ? '' : 'Reported annual figures from SEC filings. The latest fiscal year of each company was checked against its printed filing; earlier years come from the SEC\'s structured data and have not been manually verified. Each company\'s Fundamentals page lists its source, refresh date and limitations.';
     Picker.attach({ input: $('q'), list: $('results'), entries: priceIndex, noneText: 'No match in this data set.', onChoose: e => { if (state.syms.indexOf(e.s) < 0 && state.syms.length < CompareCalc.MAX_SECURITIES) { state.syms.push(e.s); syncHash(); renderPrices(); } } });
     Picker.attach({ input: $('fq'), list: $('fresults'), entries: fdIndex, noneText: 'No company with that name in this data set.', scope: '#fq', onChoose: e => { if (state.fd.indexOf(e.s) < 0 && state.fd.length < MAX_FD) { state.fd.push(e.s); syncHash(); renderFund(); } } });
     $('periods').addEventListener('click', ev => { const b = ev.target.closest('button[data-p]'); if (b) { state.period = b.dataset.p; syncHash(); renderPrices(); } });

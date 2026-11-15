@@ -67,7 +67,8 @@
   function table(c, a, sc) {
     const ys = a.years.slice(-10);
     const bank = c.profile === 'bank', noGP = !!(c.coverage && c.coverage.suppressed && c.coverage.suppressed.grossProfit);
-    const defs = (c.coverage && c.coverage.definitions) || {};
+    const allDefs = (c.coverage && c.coverage.definitions) || {}, defs = {};            // a change only matters if two meanings fall inside the years shown
+    Object.keys(allDefs).forEach(k => { const runs = allDefs[k].filter(r => ys.some(y => y >= r.fromFy && y <= r.toFy)); if (runs.length > 1) defs[k] = runs; });
     const runIdx = (k, y) => defs[k] ? defs[k].findIndex(r => y >= r.fromFy && y <= r.toFy) : -1;
     const dagger = (k, y) => (defs[k] && runIdx(k, y) !== defs[k].length - 1 && runIdx(k, y) >= 0) ? '<sup title="Different definition from the latest year: see the note under the table">†</sup>' : '';
     const oc = i => (i < ys.length - 6 ? ' old' : '');

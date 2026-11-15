@@ -1,0 +1,35 @@
+CreditScope
+Copyright (c) 2026 Mason Upton
+
+WHAT THE MIT LICENCE COVERS
+The MIT licence in the file LICENSE covers CreditScope's original source code
+(the Python pipeline and tools, the website's HTML, CSS and JavaScript, scripts
+and tests), its documentation, and its generated sample data (simulated
+securities, the demonstration portfolio and the fictional demonstration
+companies, which are invented and labelled as simulated).
+
+WHAT IT DOES NOT COVER
+The licence does not grant any rights in third-party datasets or content, which
+remain subject to their owners' terms:
+
+ * ETF quote data in the data/ directory (raw responses, history.csv,
+   status.json, run logs) and in tests/fixtures/nasdaq-SPY.json. These are
+   delayed public quotes collected from Nasdaq's public quote service for an
+   educational assignment, for information only. They are Nasdaq's data, are not
+   licensed under MIT, and may not be reused beyond what Nasdaq's terms allow.
+
+ * SEC EDGAR filing data in explorer/sec/ (annual-report figures for Apple Inc.
+   and Microsoft Corporation, reduced from the U.S. Securities and Exchange
+   Commission's public filings). This is public information from the SEC; every
+   figure links to the filing it came from. It is not licensed under MIT, and the
+   figures remain the companies' reported numbers.
+
+ * Third-party software, notably the Chart.js library in assets/vendor/, which is
+   distributed under its own MIT licence: see THIRD_PARTY_NOTICES.md.
+
+Company names, tickers and trademarks are used only to identify the companies
+concerned. CreditScope is not affiliated with, sponsored by or endorsed by
+Nasdaq, the SEC, Apple, Microsoft or any other company named.
+
+CreditScope is for education only. It is not investment advice, and its figures
+may contain errors or be out of date.
