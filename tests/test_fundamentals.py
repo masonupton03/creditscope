@@ -421,3 +421,10 @@ def test_example_workflow_is_inactive_takes_tickers_through_env_and_commits_noth
     assert "git push" not in text and "git commit" not in text
     assert '"${{ inputs' not in text.split("run:", 1)[1]                                  # inputs are never spliced into shell text
     assert "preflight" in text and "secrets.SEC_USER_AGENT" in text
+
+
+def test_review_reports_coverage_checks_and_tags_offline_for_built_files(capsys):
+    assert cli.main(["review", "--out", str(ROOT / "explorer" / "sec-sample")]) == 0
+    out = capsys.readouterr().out
+    assert "== DEMA" in out and "GROSS_PROFIT_MISMATCH" in out and "via Revenues" in out and "net margin" in out
+    assert cli.main(["review", "--out", str(ROOT / "docs")]) == 2

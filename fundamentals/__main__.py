@@ -91,6 +91,33 @@ def run_preflight(args, env=None) -> int:
     return 2 if problems else 0
 
 
+def run_review(args) -> int:
+    """Offline report on built company files: coverage, tag choices, data checks, derived values worth a second look."""
+    files = sorted((args.out / "company").glob("*.json"))
+    if not files:
+        print(f"no company files in {args.out / 'company'}", file=sys.stderr)
+        return 2
+    for f in files:
+        c = json.loads(f.read_text())
+        print(f"== {c['ticker']}  {c['name']}  (CIK {c['cik']})  latest fiscal period ends {c['latestPeriodEnd']}, filed {c['latestFiled']}  [{f.stat().st_size // 1024} KB]")
+        cov = c.get("coverage", {})
+        print("  missing: " + (", ".join(cov.get("missing", [])) or "nothing"))
+        for k, v in cov.get("found", {}).items():
+            pts = c["metrics"][k]["points"]
+            print(f"  {k:<18} {v['years']:>2} yrs  FY{pts[0]['fy']}-FY{pts[-1]['fy']}  latest {pts[-1]['val']:,.2f} {c['metrics'][k]['unit']}  via {', '.join(v['tags'])}")
+        for chk in c.get("checks", []):
+            print(f"  CHECK {chk['code']}: {chk['message']}")
+        if not c.get("checks"):
+            print("  no data checks raised")
+        by = {k: {p['fy']: p['val'] for p in m['points']} for k, m in c["metrics"].items()}
+        for fy in sorted(by.get("revenue", {}))[-3:]:
+            r, n = by["revenue"][fy], by.get("netIncome", {}).get(fy)
+            if n is not None and r:
+                print(f"  FY{fy}: revenue {r:,.0f}, net income {n:,.0f}, net margin {n / r:.1%}")
+    print("\nThis report is only a map of what to look at. Figures are confirmed against the filings by hand (see `verify --sheet`).")
+    return 0
+
+
 def run_verify(args, ua, client=None) -> int:
     from . import verify as V
     t = args.ticker.upper()
@@ -120,11 +147,15 @@ def main(argv=None) -> int:
     sub.add_parser("sample", help="rebuild the simulated demo set (no network)")
     v = sub.add_parser("verify", help="cross-check a built company through another SEC endpoint and write a manual checklist (needs SEC_USER_AGENT)")
     v.add_argument("ticker"); v.add_argument("--out", type=Path, default=ROOT / "explorer" / "sec"); v.add_argument("--years", type=int, default=3); v.add_argument("--sheet", type=Path)
+    rv = sub.add_parser("review", help="offline report on built company files (no network)")
+    rv.add_argument("--out", type=Path, default=ROOT / "explorer" / "sec")
     pf = sub.add_parser("preflight", help="check the contact setting and the plan WITHOUT contacting the SEC")
     pf.add_argument("--tickers", default=",".join(FIRST_RUN))
     args = ap.parse_args(argv)
     if args.cmd == "preflight":
         return run_preflight(args)
+    if args.cmd == "review":
+        return run_review(args)
     if args.cmd == "sample":
         from . import sample
         print(sample.write())

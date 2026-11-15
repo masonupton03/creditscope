@@ -11,6 +11,7 @@ contacts the SEC or publishes data is marked **[needs your OK]**.
 | Reducer (annual 10-K facts, tag priority, restatements, fiscal-year labels, bank shape, missing tags left blank) | `fundamentals/reduce.py`, `concepts.py` | tested, including a Microsoft-style June year, Apple-style 52/53-week year, Walmart-style January year and a bank |
 | Coverage and data checks (flag, never change numbers) | `fundamentals/reduce.py` | tested |
 | Cross-check and manual checklist | `python -m fundamentals verify` | tested against the mock |
+| Offline review report (`review`) | `python -m fundamentals review --out DIR` | tested |
 | Offline readiness check | `python -m fundamentals preflight` | makes no request |
 | Manual build workflow (inactive example) | `docs/fundamentals-workflow.example.yml` | builds, verifies, uploads an artifact; commits nothing |
 | Page | `fundamentals.html` | shows the simulated companies today; shows real ones once `explorer/sec/` has files |
@@ -63,17 +64,26 @@ Merging is a separate approval, and the daily assignment workflow is not touched
 default tickers `MSFT,AAPL,WMT,JPM`. The job runs `preflight` (no request), then `build`, then `verify` for each company, and
 uploads an artifact named `sec-fundamentals` (the four company files, `index.json`, and one checklist per company). Download it.
 
-**Option B, on your computer (works today).**
+**Option B, on your computer (works today).** Run these in your own Terminal, from the repository folder. Nothing is written inside the repository.
 
 ```bash
-export SEC_USER_AGENT='CreditScope educational project creditscope.project@<provider>'   # this shell only
-python3 -m fundamentals preflight                                    # offline: must say Ready
-python3 -m fundamentals build --tickers MSFT,AAPL,WMT,JPM --out /tmp/sec-first-run
-for t in MSFT AAPL WMT JPM; do python3 -m fundamentals verify $t --out /tmp/sec-first-run --sheet /tmp/sec-first-run/$t.md; done
+cd ~/creditscope
+# 1. contact: typed at a hidden prompt, kept only in this Terminal window (never in a file, history or chat)
+read -rs "SEC_USER_AGENT?Contact (e.g. CreditScope educational project name@your-project-mailbox): "; echo   # zsh; in bash use: read -rsp "..." SEC_USER_AGENT
+export SEC_USER_AGENT
+# 2. offline readiness check: must end with "Ready"; makes no request
+python3 -m fundamentals preflight
+# 3. fetch MSFT, AAPL, WMT, JPM into a folder OUTSIDE the repository
+OUT=~/creditscope-sec-review; mkdir -p "$OUT"
+python3 -m fundamentals build --tickers MSFT,AAPL,WMT,JPM --out "$OUT"
+# 4. cross-check each company through a second SEC endpoint and write a manual checklist
+for t in MSFT AAPL WMT JPM; do python3 -m fundamentals verify $t --out "$OUT" --sheet "$OUT/$t.md"; done
+# 5. offline review report: coverage, tags used, warnings, missing fields, margins
+python3 -m fundamentals review --out "$OUT" | less
+# 6. forget the contact
 unset SEC_USER_AGENT
 ```
 
-(Do not paste the real address into a file or into this chat. Typing it in your own terminal is fine.)
 Total traffic: 5 requests for the build and up to about 80 for the checks (one per distinct data tag per company), at 5 per second, well under the SEC's limit.
 
 ## Step 5: verify against the filings by hand (you, about 30 minutes)
