@@ -28,11 +28,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: main            # always the newest commit, including the bot's data commit
-      - name: Stage the site (pages + the two data files; raw files are not published)
+      - name: Stage the site (pages, research data, licence files and the two data files; raw files are not published)
         run: |
           mkdir -p _site/data
-          cp index.html browse.html trends.html manifest.webmanifest sw.js _site/
+          cp index.html browse.html trends.html explorer.html fundamentals.html compare.html portfolio.html platform.html manifest.webmanifest sw.js _site/
+          cp LICENSE NOTICE THIRD_PARTY_NOTICES.md _site/
           cp -R assets _site/assets
+          cp -R explorer _site/explorer
           cp data/history.csv data/status.json _site/data/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v6
