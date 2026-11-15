@@ -52,3 +52,42 @@ Recommendation: option 1 for the assignment, with the exclusion in the notice, a
 `THIRD_PARTY_NOTICES.md`: the Chart.js MIT notice ("Copyright (c) 2014-2024 Chart.js Contributors") and the @kurkle/color MIT notice, copied from the upstream releases.
 
 Approval needed: (a) add `LICENSE` + `NOTICE` + `THIRD_PARTY_NOTICES.md`; (b) the Nasdaq option above.
+
+## 5. Long-term plan for the Nasdaq ETF data (added 2026-11-15; nothing changed in the pipeline or the repository)
+
+Starting point, stated plainly: excluding `data/` from the MIT licence only says that **we** grant no rights in it. It does not give **us** the right to republish it. Nasdaq's
+general site terms (as found; no terms specific to `api.nasdaq.com` were located) grant a personal, limited, non-commercial licence, and Nasdaq's data policies treat redistribution and
+feeds as separate, licensed activities. Publishing the raw responses (public repository) and the derived quotes (`history.csv` on the public site) is a redistribution that those terms do not
+obviously allow. It is a real but modest risk (educational, labelled, attributed, no fee, a dozen delayed quotes a day); it is not a resolved question.
+
+What the assignment actually needs from the data (from the README and rubric audit): a source called daily by a Python job in GitHub Actions, raw responses saved under `data/raw/<date>/`,
+a history file rebuilt from raw only, status and an Issue per day, and a GitHub Pages site with Today, Browse and Trends. None of that requires Nasdaq specifically or requires the raw files to be public to the world;
+it requires that the grader can see the repository and the site.
+
+### Options for the long term
+
+| Plan | What changes | Compliance | Assignment fit | Cost |
+|---|---|---|---|---|
+| **A. Keep through grading, then retire the public copy** (recommended baseline) | nothing until grading is done; afterwards stop the schedule and make the repository private, or purge quotes from the public tree | the exposure is limited to the grading period; after it, the public redistribution ends | fully intact until graded | Pages from a private repository needs a paid GitHub plan; the GitHub Student Developer Pack normally includes one (verify on your account). Removing files from the current tree does **not** remove them from git history; only a private repository or a history rewrite does |
+| **B. Private repository from now, grader invited as a collaborator** | repository visibility (not the pipeline) | raw data no longer public; the public site would still serve `history.csv`, so the Today/Browse/Trends pages still redistribute derived quotes | only if the professor accepts a private repository, and the site stays public | same Pages-plan caveat. Needs the professor's agreement. It is a visibility change, which needs your explicit approval |
+| **C. Replace the source with a redistributable one** | `creditscope/sources.py` and one converter in `convert.py` (the README says a new source is one converter) | clean, if the source allows redistribution (candidates to verify, not yet checked: U.S. Treasury daily yield-curve data and other U.S. government statistical series, which are generally public domain) | the topic is "ETFs", so a change of items needs the professor's agreement; **changing the source resets the seven-date clock**, so not before Dec 3 | moderate work; high assignment risk before the due date |
+| **D. Ask Nasdaq** | nothing | the only certain answer | none | slow; silence is not permission |
+| **E. Derived-only publication** | keep raw and quotes private, publish only derived measures (returns, rankings) | better than publishing quotes, still arguable | conflicts with "history file in the repository" unless the history is private (needs B) | rebuild of the public pages |
+
+For ETF price data specifically there is no free, openly redistributable source that I can recommend: the usual free APIs forbid redistribution of raw data in their terms, and the sources
+we tested (Yahoo, Stooq) blocked the runner. That is why C means changing what is tracked, not just where it comes from.
+
+### Recommendation
+
+1. **Until the assignment is graded:** change nothing. The assignment requires this pipeline and its public outputs, the dates are being counted, and the data is already labelled as delayed public data from Nasdaq
+   for information only. Keep the exclusion in `NOTICE`, but do not treat it as permission.
+2. **Now (costs nothing): ask the professor**, with the questions below. Their answer decides between A, B and C and also documents that the choice of source was theirs to approve.
+3. **After grading:** plan A (stop collecting; make the repository private, or if you want it public for job applications, remove the Nasdaq-derived files from the public repository by a history rewrite you approve explicitly). For a public portfolio, lead with the SEC fundamentals and the simulated research pages,
+   which do not depend on Nasdaq at all, and describe the daily tracker in the README without serving the quotes.
+4. **Do not** switch sources before the due date: it resets the seven collection dates and risks the graded minimum.
+
+### Questions for the professor (draft, not sent)
+
+> The project's data source is Nasdaq's public quote API, collected once a day for 12 ETFs, with the raw responses committed to a public GitHub repository and the history published on GitHub Pages.
+> Nasdaq's website terms look limited to personal, non-commercial use. (1) Is this source acceptable for the assignment as it is? (2) Is a private repository (with you added as a collaborator) acceptable instead of a public one?
+> (3) Is there a source you prefer or one that is approved for redistribution, and would changing the source after the first week be acceptable if needed? (4) After the assignment is graded, may I stop collecting and restrict or remove the public copy?
