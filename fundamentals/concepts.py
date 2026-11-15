@@ -14,7 +14,8 @@ METRICS = {
     "operatingIncome":  {"label": "Operating income", "kind": "duration", "unit": "USD", "tags": ["OperatingIncomeLoss"]},
     "netIncome":        {"label": "Net income", "kind": "duration", "unit": "USD", "tags": ["NetIncomeLoss", "ProfitLoss"]},
     "epsDiluted":       {"label": "Diluted EPS", "kind": "duration", "unit": "USD/shares", "tags": ["EarningsPerShareDiluted"]},
-    "operatingCashFlow": {"label": "Operating cash flow", "kind": "duration", "unit": "USD", "tags": ["NetCashProvidedByUsedInOperatingActivities"]},
+    "operatingCashFlow": {"label": "Operating cash flow", "kind": "duration", "unit": "USD", "tags": [
+        "NetCashProvidedByUsedInOperatingActivities", "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"]},
     "capex":            {"label": "Capital expenditure", "kind": "duration", "unit": "USD", "tags": [
         "PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"]},
     "assets":           {"label": "Total assets", "kind": "instant", "unit": "USD", "tags": ["Assets"]},
@@ -48,6 +49,14 @@ BALANCE_KEYS = ("assets", "liabilities", "equity")
 
 # What a tag means, where different tags for the same metric are NOT interchangeable. A change of meaning inside a series is disclosed.
 MEANING = {
+    "equity": {
+        "StockholdersEquity": "equity attributable to the company's shareholders",
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": "total equity including noncontrolling interests",
+    },
+    "operatingCashFlow": {
+        "NetCashProvidedByUsedInOperatingActivities": "operating cash flow (total)",
+        "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations": "operating cash flow from continuing operations (excludes any discontinued operations)",
+    },
     "cash": {
         "CashAndCashEquivalentsAtCarryingValue": "cash and cash equivalents",
         "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": "cash, cash equivalents and restricted cash",

@@ -64,9 +64,9 @@
   function table(c, a, sc) {
     const ys = a.years.slice(-10);
     const bank = c.profile === 'bank';
-    const cashRuns = (c.coverage && c.coverage.definitions && c.coverage.definitions.cash) || null;
-    const runIdx = y => cashRuns ? cashRuns.findIndex(r => y >= r.fromFy && y <= r.toFy) : -1;
-    const dagger = (k, y) => (k === 'cash' && cashRuns && runIdx(y) !== cashRuns.length - 1 && runIdx(y) >= 0) ? '<sup title="Different definition from the latest year: see the note under the table">†</sup>' : '';
+    const defs = (c.coverage && c.coverage.definitions) || {};
+    const runIdx = (k, y) => defs[k] ? defs[k].findIndex(r => y >= r.fromFy && y <= r.toFy) : -1;
+    const dagger = (k, y) => (defs[k] && runIdx(k, y) !== defs[k].length - 1 && runIdx(k, y) >= 0) ? '<sup title="Different definition from the latest year: see the note under the table">†</sup>' : '';
     const oc = i => (i < ys.length - 6 ? ' old' : '');
     const head = '<tr><th class="sticky" scope="col">USD ' + sc.name + ' unless noted</th>' + ys.map((y, i) => {
       const p = ['revenue', 'netIncome', 'assets'].map(k => a.values[k] && a.values[k][y]).find(Boolean);
@@ -95,8 +95,8 @@
       rep('Operating income', 'operatingIncome');
     }
     rep('Net income', 'netIncome'); rep('Diluted EPS (USD per share)', 'epsDiluted', eps);
-    grp('Balance sheet'); rep('Total assets', 'assets'); rep('Total liabilities', 'liabilities'); rep("Shareholders' equity", 'equity'); rep(cashRuns ? 'Cash (definition changes) †' : 'Cash and equivalents', 'cash'); if (!bank) rep('Debt', 'debt');
-    grp('Cash flow'); rep('Operating cash flow', 'operatingCashFlow'); if (!bank) { rep('Capital expenditure', 'capex'); der('Free cash flow (derived)', 'fcf', m); }
+    grp('Balance sheet'); rep('Total assets', 'assets'); rep('Total liabilities', 'liabilities'); rep("Shareholders' equity", 'equity'); rep(defs.cash ? 'Cash (definition changes) †' : 'Cash and equivalents', 'cash'); if (!bank) rep('Debt', 'debt');
+    grp('Cash flow'); rep(defs.operatingCashFlow ? 'Operating cash flow †' : 'Operating cash flow', 'operatingCashFlow'); if (!bank) { rep('Capital expenditure', 'capex'); der('Free cash flow (derived)', 'fcf', m); }
     grp('Growth and profitability (derived)'); der('Revenue growth', 'revenueGrowth', v => pct(v));
     if (!bank) { der('Gross margin', 'grossMargin', v => plain(v)); der('Operating margin', 'operatingMargin', v => plain(v)); }
     der('Net margin', 'netMargin', v => plain(v));
@@ -104,11 +104,11 @@
     der('Return on equity', 'roe', v => plain(v)); der('Return on assets', 'roa', v => plain(v));
     grp('Leverage (derived)'); if (!bank) { der('Debt to equity', 'debtToEquity', v => CS.num(v, 2) + '×'); der('Net debt (debt − cash)', 'netDebt', m); } der('Liabilities to assets', 'liabilitiesToAssets', v => plain(v));
     const more = ys.length > 6 ? '<p class="fd-years"><button type="button" class="btn" id="fdAllYears" aria-expanded="false" aria-controls="fdTable">Show all ' + ys.length + ' years</button><span class="cap"> Showing the latest 6 of ' + ys.length + ' fiscal years.</span></p>' : '';
-    return more + '<table id="fdTable" class="t fd-table"><caption class="sr-only">Annual figures reported to the SEC and ratios derived from them</caption><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>' + notesBelow(c, cashRuns, bank);
+    return more + '<table id="fdTable" class="t fd-table"><caption class="sr-only">Annual figures reported to the SEC and ratios derived from them</caption><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>' + notesBelow(c, defs, bank);
   }
-  function notesBelow(c, cashRuns, bank) {
+  function notesBelow(c, defs, bank) {
     const out = [];
-    if (cashRuns) out.push('<p class="cap"><b>† Cash is not one continuous series.</b> ' + cashRuns.map(r => 'FY' + r.fromFy + (r.toFy !== r.fromFy ? '–FY' + r.toFy : '') + ': ' + E(r.meaning)).join('; ') + '. Compare years only within the same definition.</p>');
+    Object.keys(defs).forEach(k => out.push('<p class="cap"><b>† ' + E((c.metrics[k] && c.metrics[k].label) || k) + ' is not one continuous series.</b> ' + defs[k].map(r => 'FY' + r.fromFy + (r.toFy !== r.fromFy ? '–FY' + r.toFy : '') + ': ' + E(r.meaning)).join('; ') + '. Compare years only within the same definition.</p>'));
     if (bank) out.push('<p class="cap"><b>Not shown for a bank:</b> cost of revenue, gross profit, operating income, capital expenditure, free cash flow, net debt, debt to equity and the margins built from them. Interest is a bank\'s operating cost and deposits are its funding, so these measures do not mean what they mean for other companies. Revenue is the total net revenue the bank reports.</p>');
     return out.join('');
   }

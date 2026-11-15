@@ -132,7 +132,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('bank: analysed-as-a-bank notice and net-revenue wording', /Analysed as a bank/.test(t) && /Net revenue/.test(t));
     ok('bank: gross profit, operating margin, free cash flow, debt and net debt are not shown', !/Gross profit/.test(await p.textContent('.fd-table')) && !/Free cash flow|Operating margin|Net debt|Debt to equity/.test(await p.textContent('.fd-table')) && /Not shown for a bank/.test(t));
     ok('stale series: a warning says the debt figure is not shown and it is absent from the figures', /Debt is not shown/.test(t) && !/>Debt</.test(await p.innerHTML('.fd-table')) && /last reported for FY2013/.test(await p.textContent('#audit')));
-    ok('cash definition change: dagger in the table, footnote names every definition', (await p.locator('.fd-table sup').count()) > 0 && /Cash is not one continuous series/.test(t) && /cash and due from banks/.test(t));
+    ok('cash definition change: dagger in the table, footnote names every definition', (await p.locator('.fd-table sup').count()) > 0 && /Cash and equivalents is not one continuous series/.test(t) && /cash and due from banks/.test(t));
     ok('bank page: no console errors', p.errs.length === 0, p.errs.join('|'));
     await p.close();
   }

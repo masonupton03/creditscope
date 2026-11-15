@@ -525,3 +525,37 @@ def test_a_bank_is_recognised_from_its_filing_shape_and_ordinary_companies_are_n
     assert bank["profile"] == "bank" and "Deposits" in bank["profileReason"]
     other = R.reduce_company(company({"Revenues": {"USD": [fact("2023-12-31", 9, start="2023-01-01")]}, "CostOfRevenue": {"USD": [fact("2023-12-31", 4, start="2023-01-01")]}, "Deposits": {"USD": [fact("2023-12-31", 5)]}}), "O")
     assert other["profile"] == "general"
+
+
+def test_operating_cash_flow_falls_back_to_the_continuing_operations_tag_and_says_so():
+    c = R.reduce_company(company({
+        "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations": {"USD": [fact("2014-06-30", 32, start="2013-07-01", accn="m-14-1"), fact("2015-06-30", 29, start="2014-07-01", accn="m-15-1")]},
+        "NetCashProvidedByUsedInOperatingActivities": {"USD": [fact("2016-06-30", 33, start="2015-07-01", accn="m-16-1"), fact("2015-06-30", 30, start="2014-07-01", accn="m-18-1", filed="2018-08-01")]}}), "T")
+    by = {p["fy"]: p for p in pts(c, "operatingCashFlow")}
+    assert by[2014]["tag"].endswith("ContinuingOperations") and by[2015]["tag"] == "NetCashProvidedByUsedInOperatingActivities" and by[2015]["val"] == 30   # the preferred tag wins when both exist
+    assert [r["meaning"] for r in c["coverage"]["definitions"]["operatingCashFlow"]][0].startswith("operating cash flow from continuing")
+
+
+def test_the_window_is_twelve_fiscal_years_not_twelve_points():
+    facts = [fact(f"{y}-12-31", y, start=f"{y}-01-01", accn=f"w-{y % 100}-1") for y in range(2010, 2026)]
+    old_gap = [fact("2005-12-31", 1, start="2005-01-01", accn="w-05-1")]
+    c = R.reduce_company(company({"Revenues": {"USD": facts}, "NetIncomeLoss": {"USD": old_gap + facts[-3:]}}), "T")
+    assert [p["fy"] for p in pts(c)][0] == 2014 and [p["fy"] for p in pts(c, "netIncome")][0] == 2023   # the 2005 value is outside the window, not a lonely first point
+
+
+def test_equity_keeps_one_definition_when_a_later_filing_only_offers_the_wider_one():
+    old, new = "w-16-1", "w-18-1"
+    c = R.reduce_company(company({
+        "Assets": {"USD": [fact("2015-01-31", 200, accn=old, filed="2016-03-01"), fact("2015-01-31", 200, accn=new, filed="2018-03-01")]},
+        "StockholdersEquity": {"USD": [fact("2015-01-31", 80, accn=old, filed="2016-03-01")]},                                                    # parent equity only in the older filing
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": {"USD": [fact("2015-01-31", 86, accn=new, filed="2018-03-01")]}}), "T")
+    e = pts(c, "equity")[0]
+    assert e["val"] == 80 and e["tag"] == "StockholdersEquity" and e["accn"] == old
+    assert "equity" not in c["coverage"]["definitions"]
+
+
+def test_a_series_that_must_use_the_wider_equity_in_some_years_discloses_the_change():
+    c = R.reduce_company(company({
+        "StockholdersEquity": {"USD": [fact("2016-12-31", 50, accn="e-17-1")]},
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": {"USD": [fact("2015-12-31", 55, accn="e-16-1")]}}), "T")
+    assert [r["tag"] for r in c["coverage"]["definitions"]["equity"]] == ["StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "StockholdersEquity"]

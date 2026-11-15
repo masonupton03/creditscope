@@ -91,12 +91,23 @@ def _balance_sheet(company: dict) -> dict:
                 slot = cand.setdefault(f["end"], {}).setdefault(f["accn"], {})
                 if key not in slot or prio < slot[key][0]:
                     slot[key] = (prio, tag, f)
+    # One definition per figure and date: if the preferred tag exists for this date in ANY annual filing, a filing that only offers a lower-priority
+    # tag (for example equity including noncontrolling interests instead of the shareholders' equity) cannot win. Otherwise definitions would mix.
+    for end, by_accn in cand.items():
+        for key in C.BALANCE_KEYS:
+            best = min((slot[key][0] for slot in by_accn.values() if key in slot), default=None)
+            for slot in by_accn.values():
+                if key in slot and slot[key][0] != best:
+                    del slot[key]
     out = {k: {} for k in C.BALANCE_KEYS}
     for end, by_accn in cand.items():
+        by_accn = {a: sl for a, sl in by_accn.items() if sl}
         def rank(item):
             accn, slot = item
             filed = max(v[2].get("filed", "") for v in slot.values())
             return (len(slot), filed, accn)
+        if not by_accn:
+            continue
         accn, slot = max(by_accn.items(), key=rank)
         for key, (_, tag, f) in slot.items():
             out[key][end] = _point(f, tag)
@@ -249,7 +260,12 @@ def reduce_company(company: dict, ticker: str, generated: str = None, synthetic:
         for p in m["points"]:
             by_fy[p["fy"]] = p
         m["points"] = [by_fy[k] for k in sorted(by_fy)]
-    metrics, stale = split_stale(metrics)
+    metrics, stale = split_stale(metrics)                          # first: so a series that stopped long ago is reported as such, not silently trimmed
+    top = max((p["fy"] for m in metrics.values() for p in m["points"]), default=None)
+    if top is not None:                                            # the window is twelve fiscal years, not twelve points
+        for m in metrics.values():
+            m["points"] = [p for p in m["points"] if p["fy"] > top - C.MAX_YEARS]
+        metrics = {k: m for k, m in metrics.items() if m["points"]}
     defs = definition_changes(metrics)
     prof = profile(company, metrics)
     filed = [p["filed"] for m in metrics.values() for p in m["points"] if p.get("filed")]

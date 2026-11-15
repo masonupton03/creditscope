@@ -34,10 +34,24 @@ outside the repository. This note records what the build showed and what was don
 `STALE_SERIES`, `GAP_IN_SERIES` (a hole inside a series), `TAG_SWITCH_JUMP` (more than 40% at a tag change), `DEFINITION_CHANGE`, and a balance-identity
 message that names the filing dates when figures differ.
 
-## Open items
+## Diagnostic build results (2026-11-15, second build)
 
-- MSFT operating cash flow lacks FY2014 and FY2015 (and starts at FY2013). Cause unknown until the saved SEC response is examined with
-  `python3 -m fundamentals explain MSFT operatingCashFlow --raw-dir ... --year 2015`.
-- `verify` results and the manual comparison with the filings, per company, from the owner.
-- JPM operating cash flow of -147.8 billion USD (FY2025): plausible for a bank, to be confirmed against the filing.
-- WMT gross profit is derived (revenue minus cost of revenue) and is not Walmart's own gross-profit-rate definition; total liabilities are not reported.
+- **`verify`:** MSFT 39, AAPL 39, WMT 33, JPM 24 figures re-confirmed through the SEC's per-concept endpoint, 0 mismatches, 0 composite figures. This
+  shows the reduction did not corrupt SEC values. It is NOT independent confirmation: both endpoints are SEC data. The filing comparison is manual.
+- **MSFT operating cash flow gap explained.** Microsoft reported FY2014 and FY2015 operating cash flow under
+  `NetCashProvidedByUsedInOperatingActivitiesContinuingOperations`, not under `NetCashProvidedByUsedInOperatingActivities` (which has no 10-K fact for
+  those years). The reducer now reads the continuing-operations tag as a lower-priority fallback, and the series is disclosed as changing meaning
+  (FY2015 from continuing operations, FY2016 on total). FY2015 shows 29,668 million (the figure as restated in the FY2017 10-K; the original FY2015
+  10-K said 29,080 million). The stray FY2013 point came from a twelve-point (not twelve-year) window; the window is now twelve fiscal years.
+- **WMT equity mixed two definitions** (FY2015-FY2024 equity including noncontrolling interests, FY2025-FY2026 shareholders' equity) because the
+  "one filing" rule picked filings that only carried the wider tag. Fixed: where the preferred tag exists for a date in any annual filing, a filing that
+  offers only a lower-priority tag cannot win. Any remaining change of equity definition is disclosed like cash.
+- **JPM debt** is reported as not shown (stale, FY2013) rather than trimmed away silently.
+
+## Open items (after the fixes)
+
+- Manual comparison with the filings (per company: latest-year revenue, net income, total assets, operating cash flow, and debt for AAPL, MSFT, WMT).
+- JPM operating cash flow of -147.8 billion USD (FY2025): plausible for a bank; confirm against the cash flow statement.
+- WMT gross profit is derived (revenue minus cost of revenue), not Walmart's own gross-profit-rate definition; Walmart reports no total liabilities.
+- Debt for AAPL, MSFT and WMT is long-term debt including the current portion; it excludes commercial paper and finance/operating lease liabilities.
+- MSFT capex excludes finance leases (the tag is cash paid for property and equipment); confirm FY2026 against the filing.
