@@ -298,3 +298,5 @@ details.why > summary::before { content: '›'; color: var(--muted); display: in
 details.why[open] > summary::before { transform: rotate(90deg); }
 details.why > summary:hover { color: var(--text); }
 .page-head .intro { margin: var(--sp-2) 0 0; font-size: 13px; color: var(--muted); max-width: 74ch; }
+.mt { margin-top: var(--sp-5); }
+table.t tbody th { position: static; background: transparent; color: var(--text-2); font-size: 14px; font-weight: 500; border-bottom-color: var(--line); }

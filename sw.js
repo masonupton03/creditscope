@@ -4,7 +4,7 @@
  *  - Data files (data/history.csv, data/status.json): network first, so an online visit always gets
  *    the latest data; when offline the last copy that was loaded is served, marked X-CS-Cache: 1.
  */
-const VERSION = 'creditscope-v8';
+const VERSION = 'creditscope-v9';
 const SHELL = [
   './', 'index.html', 'browse.html', 'trends.html', 'explorer.html', 'portfolio.html', 'fundamentals.html', 'compare.html', 'platform.html', 'manifest.webmanifest',
   'assets/css/site.css', 'assets/css/explorer.css', 'assets/css/portfolio.css',

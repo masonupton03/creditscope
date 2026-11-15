@@ -55,7 +55,7 @@ def test_pages_share_fonts_colors_and_head():
         assert "<title>CreditScope" in html and 'name="viewport"' in html and 'lang="en"' in html
         assert "assets/js/common.js" in html and "assets/js/stats.js" in html
     css = read("assets/css/site.css")
-    assert "--font:" in css and ':root[data-theme="light"]' in css       # one font stack, dark default + light theme
+    assert "--font:" in css and ':root[data-theme="light"]' in css       # one font stack, light default + dark theme
 
 
 def test_every_local_reference_exists():

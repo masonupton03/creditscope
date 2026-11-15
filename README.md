@@ -223,7 +223,8 @@ owner's computer and never publishes market data or holdings. See `docs/portfoli
 | `personal/*.py` | Private personal edition: credential storage outside the repository, market-data client, local server, portfolio storage. |
 | `scripts/make_explorer_sample.py`, `scripts/make_portfolio_sample.py` | Generate the simulated sample data. |
 | `scripts/sync_nav.py` | Single source of the navigation markup used by every page (`--check` verifies they match). |
-| `scripts/browser-audit/*` | Optional real-browser audits (accessibility, responsiveness, privacy, offline); see its README. |
+| `scripts/browser-audit/*` | Optional real-browser audits (accessibility, responsiveness, theme, privacy, offline, screenshots); see its README. |
+| `docs/visual-review/*.jpg` | Full-page screenshots of the five main pages (desktop and phone, light and dark; simulated data) used by `docs/visual-review.md`. |
 | `docs/*.md`, `docs/permission-requests/*.md`, `docs/fundamentals-workflow.example.yml` | Design notes, data-licensing research, unsent permission-request drafts, the rubric audit, launch checklist, and an inactive workflow example. |
 | `tests/test_explorer.py`, `tests/test_compare.py`, `tests/test_fundamentals.py`, `tests/test_portfolio.py`, `tests/test_portfolio_private.py`, `tests/test_personal.py`, `tests/test_pages.py`, `tests/test_readme.py` | Tests of the research platform: calculations against independent references, privacy and security, accessibility structure, README completeness. |
 | `tests/ref_finance.py`, `tests/ref_compare.py`, `tests/ref_portfolio.py`, `tests/ref_fundamentals.py` | Independent Python implementations of each calculation (test references only). |

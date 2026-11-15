@@ -35,7 +35,7 @@ owner's explicit approval at that moment. Approval of the plan is not approval o
 - [ ] `python3 scripts/sync_nav.py --check` reports the navigation in sync; the About link and Markets / Research / Portfolio areas work on every page.
 - [ ] Open a pull request `feature/stock-explorer` → `main` and review the whole diff, in particular:
       `index.html`, `browse.html`, `trends.html` (nav link, skip link, `id="main"` only), `assets/css/site.css` (light-theme colour
-      tokens and `.skip` only), `sw.js` (cache v8), `README.md`, `.gitignore`.
+      tokens and `.skip` only), `sw.js` (cache v9), `README.md`, `.gitignore`.
 
 ## 3. Privacy and licensing gate (blocking)
 
@@ -61,7 +61,7 @@ owner's explicit approval at that moment. Approval of the plan is not approval o
 - [ ] `curl -I` returns 200 for: `/`, `browse.html`, `trends.html`, `explorer.html`, `fundamentals.html`, `compare.html`,
       `portfolio.html`, `platform.html`, `manifest.webmanifest`, `sw.js`, `data/history.csv`, `data/status.json`.
 - [ ] Open the live site in a fresh browser profile and in one that has the **old** service worker installed: the cache upgrades
-      from v2 (what `main` ships today) to v8 without stale pages; Today still shows the latest run.
+      from v2 (what `main` ships today) to v9 without stale pages; Today still shows the latest run.
 - [ ] Run `scripts/browser-audit/regression.js` and `required-pages.js` against the live URL (service workers must not be blocked
       for the offline check).
 - [ ] Install the app from the browser on a computer and a phone; open it offline.

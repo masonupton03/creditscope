@@ -38,3 +38,4 @@ td.note-row { color: var(--muted); font-size: 12.5px; }
   #holdTable th:nth-child(4), #holdTable td:nth-child(4), #holdTable th:nth-child(8), #holdTable td:nth-child(8) { display: none; }
   #txTable th:nth-child(2), #txTable td:nth-child(2), #txTable th:nth-child(6), #txTable td:nth-child(6) { display: none; }
 }
+.pf-split .metrics.tight { grid-template-columns: repeat(2, minmax(0, 1fr)); }

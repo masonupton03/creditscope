@@ -58,7 +58,7 @@
   const common = () => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 } });
   const tip = cb => ({ backgroundColor: color('--surface-3'), titleColor: color('--text'), bodyColor: color('--text-2'), borderColor: color('--border'), borderWidth: 1, padding: 10, callbacks: cb });
   const xAxis = () => ({ grid: { display: false }, ticks: { maxTicksLimit: window.innerWidth < 560 ? 3 : 6, autoSkip: true, maxRotation: 0 } });
-  const yAxis = t => ({ grid: { color: color('--grid') }, title: { display: !!t, text: t || '' } });
+  const yAxis = t => ({ grid: { color: color('--grid') }, title: { display: false } });
   const lineDs = (label, data, c, extra) => Object.assign({ label, data, borderColor: color(c), backgroundColor: color(c), borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.1 }, extra || {});
 
   const WARN_TEXT = {

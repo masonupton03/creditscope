@@ -5,13 +5,13 @@
   const root = document.documentElement;
   const CS = window.CS = {};
 
-  /* ---------- theme (dark by default, light toggle, remembered) ---------- */
-  function currentTheme() { return root.dataset.theme === 'light' ? 'light' : 'dark'; }
-  function setTheme(t) {
+  /* ---------- theme: light by default for a first visit, dark on request, and the choice is remembered across pages ---------- */
+  function currentTheme() { return root.dataset.theme === 'dark' ? 'dark' : 'light'; }
+  function setTheme(t, remember) {
     root.dataset.theme = t;
-    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* private mode */ }
+    if (remember !== false) { try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* private mode: the choice lasts for this page only */ } }   // only an explicit choice is stored
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', t === 'light' ? '#f3f6fb' : '#060a10');
+    if (meta) meta.setAttribute('content', t === 'light' ? '#f6f7f9' : '#0b0d10');
     const btn = document.getElementById('themeBtn');
     if (btn) { btn.textContent = t === 'light' ? '☾' : '☀'; btn.setAttribute('aria-label', t === 'light' ? 'Switch to dark theme' : 'Switch to light theme'); }
     window.dispatchEvent(new CustomEvent('cs-theme', { detail: t }));
@@ -83,7 +83,8 @@
     if (!window.Chart) return;
     const C = window.Chart.defaults, v = CS.cssVar;
     C.color = v('--muted'); C.font.family = v('--font'); C.font.size = 12; C.borderColor = v('--grid');
-    C.plugins.legend.labels.usePointStyle = true; C.plugins.legend.labels.boxWidth = 8; C.plugins.legend.labels.boxHeight = 8; C.plugins.legend.labels.color = v('--text-2');
+    C.plugins.legend.labels.usePointStyle = true; C.plugins.legend.labels.boxWidth = 8; C.plugins.legend.labels.boxHeight = 8; C.plugins.legend.labels.pointStyleWidth = 8;   // same small marker whether or not the lines have points C.plugins.legend.labels.color = v('--text-2');
+    if (C.scales && C.scales.linear) C.scales.linear.ticks.maxTicksLimit = 6;
     C.elements.line.borderWidth = 2; C.elements.point.radius = 0; C.elements.point.hoverRadius = 4;
   };
   CS.loadingHtml = label => {
@@ -126,7 +127,7 @@
   window.addEventListener('appinstalled', () => { deferredPrompt = null; const b = document.getElementById('installBtn'); if (b) b.hidden = true; });
 
   document.addEventListener('DOMContentLoaded', () => {
-    setTheme(currentTheme());
+    setTheme(currentTheme(), false);
     const tb = document.getElementById('themeBtn');
     if (tb) tb.addEventListener('click', () => setTheme(currentTheme() === 'light' ? 'dark' : 'light'));
     const ib = document.getElementById('installBtn');

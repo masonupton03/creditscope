@@ -43,6 +43,28 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('compare opens with the ticker and a reference', /compare\.html#s=AAPL,SPY/.test(p.url()) && (await p.locator('#chosen li').count()) === 2);
     await p.close();
   }
+  // ---- theme: light by default (even on a dark-mode computer), dark on request, remembered across pages
+  {
+    const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark', serviceWorkers: 'block' });
+    const p = await ctx.newPage(); p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
+    await p.goto(BASE + 'index.html', { waitUntil: 'networkidle' });
+    const theme = () => p.evaluate(() => document.documentElement.dataset.theme);
+    const stored = () => p.evaluate(() => localStorage.getItem('creditscope.theme'));
+    ok('theme: a first visit is light even when the OS prefers dark', (await theme()) === 'light' && (await stored()) === null, await theme() + ' / ' + await stored());
+    await p.click('#themeBtn'); ok('theme: the toggle switches to dark and remembers it', (await theme()) === 'dark' && (await stored()) === 'dark');
+    for (const pg of ['browse.html', 'trends.html', 'explorer.html', 'fundamentals.html', 'compare.html', 'portfolio.html', 'platform.html']) {
+      await p.goto(BASE + pg, { waitUntil: 'domcontentloaded' });
+      const early = await theme(); ok('theme: dark is already applied when ' + pg + ' starts (no flash)', early === 'dark', early);
+    }
+    await p.goto(BASE + 'index.html', { waitUntil: 'networkidle' }); await p.click('#themeBtn');
+    await p.goto(BASE + 'browse.html', { waitUntil: 'domcontentloaded' }); ok('theme: switching back to light is remembered too', (await theme()) === 'light' && (await stored()) === 'light');
+    ok('theme: the toggle label matches the theme', /dark/i.test(await p.getAttribute('#themeBtn', 'aria-label') || ''));
+    await ctx.close();
+    const blocked = await b.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' }); const q = await blocked.newPage(); const errs = [];
+    q.on('pageerror', e => errs.push(e.message)); await q.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new Error('storage blocked'); } }); });
+    await q.goto(BASE + 'index.html', { waitUntil: 'networkidle' }); await q.click('#themeBtn');
+    ok('theme: with storage blocked the page still works and the toggle still switches', errs.length === 0 && (await q.evaluate(() => document.documentElement.dataset.theme)) === 'dark', errs.join('|')); await blocked.close();
+  }
   // ---- loading, error and empty states
   {
     const p = await newPage();
@@ -83,7 +105,7 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
   for (const scheme of ['dark', 'light']) for (const u of PAGES) {
     const p = await newPage(1280, scheme);
     await p.goto(BASE + u, { waitUntil: 'networkidle' });
-    if (scheme === 'light') await p.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+    await p.evaluate(t => { document.documentElement.dataset.theme = t; }, scheme);                 // both themes are always checked explicitly
     await p.waitForTimeout(900); await p.evaluate(axeSource);
     const r = await p.evaluate(() => axe.run({ runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice'] }));
     ok('axe ' + scheme + ' ' + u.split('#')[0], r.violations.length === 0, r.violations.map(v => v.id + '(' + v.nodes.length + ')').join(', ')); await p.close();

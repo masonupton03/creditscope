@@ -154,4 +154,22 @@ def test_service_worker_precaches_every_page_and_script_the_pages_use(pages):
         for a in p.assets:
             if a.startswith(("assets/", "explorer/")):
                 assert f"'{a}'" in shell, f"{a} (used by {n}) missing from the offline shell"
-    assert "creditscope-v8" in sw
+    assert "creditscope-v9" in sw
+
+
+def test_light_is_the_default_theme_and_a_saved_choice_is_applied_before_first_paint(pages):
+    for n in PAGES:
+        text = (ROOT / n).read_text(encoding="utf-8")
+        assert '<html lang="en" data-theme="light">' in text, n                                   # first visit: light, whatever the operating system prefers
+        head = text.split("</head>")[0]
+        assert "localStorage.getItem('creditscope.theme')" in head and "dataset.theme=t" in head   # a stored choice wins, set in <head> so there is no flash
+        assert 'content="#f6f7f9"' in head                                                         # browser chrome matches the light default
+    js = (ROOT / "assets" / "js" / "common.js").read_text()
+    assert "setTheme(currentTheme(), false)" in js and "if (remember !== false)" in js              # loading a page never saves a theme; only the toggle does
+    assert "light by default" in js
+
+
+def test_manifest_colours_match_the_light_default():
+    import json
+    m = json.loads((ROOT / "manifest.webmanifest").read_text())
+    assert m["theme_color"] == m["background_color"] == "#f6f7f9"

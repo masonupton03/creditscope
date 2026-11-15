@@ -41,7 +41,7 @@
   function mk(id, cfg) { if (charts[id]) charts[id].destroy(); if ($(id)) charts[id] = new Chart($(id), cfg); }
   const common = () => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 } });
   const tip = cb => ({ backgroundColor: color('--surface-3'), titleColor: color('--text'), bodyColor: color('--text-2'), borderColor: color('--border'), borderWidth: 1, padding: 10, callbacks: cb });
-  const scales = t => ({ x: { grid: { display: false } }, y: { grid: { color: color('--grid') }, title: { display: !!t, text: t || '' } } });
+  const scales = t => ({ x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: window.innerWidth < 560 ? 4 : 6 } }, y: { grid: { color: color('--grid') }, title: { display: false } } });
   const legend = { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } };
 
   function drawCharts(c, a, sc) {
@@ -128,8 +128,8 @@
       '<div class="charts two">' +
         '<div class="card"><h3>Revenue and net income</h3><p class="cap">USD ' + sc.name + ' by fiscal year.</p><div class="chart-box short"><canvas id="chRev" role="img" aria-label="Revenue and net income by fiscal year"></canvas></div></div>' +
         '<div class="card"><h3>Margins</h3><p class="cap">Share of revenue; a gap in a line means the figure was not reported or not meaningful.</p><div class="chart-box short"><canvas id="chMargin" role="img" aria-label="Margins by fiscal year"></canvas></div></div>' +
-        '<div class="card"><h3>Balance sheet</h3><p class="cap">Year-end assets, liabilities, debt and cash.</p><div class="chart-box short"><canvas id="chBal" role="img" aria-label="Balance sheet items by fiscal year"></canvas></div></div>' +
-        '<div class="card"><h3>Cash flow</h3><p class="cap">Operating cash flow, capital expenditure and free cash flow.</p><div class="chart-box short"><canvas id="chCash" role="img" aria-label="Cash flow by fiscal year"></canvas></div></div>' +
+        '<div class="card"><h3>Balance sheet</h3><p class="cap">Year-end balances, USD ' + sc.name + '.</p><div class="chart-box short"><canvas id="chBal" role="img" aria-label="Balance sheet items by fiscal year"></canvas></div></div>' +
+        '<div class="card"><h3>Cash flow</h3><p class="cap">USD ' + sc.name + ': operating cash flow, capital expenditure and free cash flow.</p><div class="chart-box short"><canvas id="chCash" role="img" aria-label="Cash flow by fiscal year"></canvas></div></div>' +
       '</div>' +
       audit +
       '<div class="card"><h2>Annual figures</h2><p class="cap">' + (c.synthetic ? 'Simulated figures (no filing links).' : 'Each reported figure links to the SEC filing it came from (hover for form, filing date, tag and period).') + ' Blank means not reported or not meaningful. * = derived.</p><div class="table-wrap">' + table(c, a, sc) + '</div></div>';
