@@ -191,6 +191,7 @@ implementation (`tests/ref_stats.py`) on the same history file.
 | `tests/test_run.py` | Full runs with a fake downloader: failed sources, same-day reruns, `status.json`, run log. |
 | `tests/test_issues.py` | Issue text and the create / update / close logic (the `gh` CLI is mocked). |
 | `tests/test_site.py` | Website checks (shared nav, assets, manifest, service worker) and the browser-vs-Python statistics comparison. |
+| `tests/test_deploy.py` | Runs the GitHub Pages staging step on a copy of the tracked files and checks the artifact: every page, link, asset and service-worker entry present, only the approved SEC companies, the assignment pages and data unchanged, nothing private, and the service worker never caching personal-edition paths. |
 | `tests/js/stats.test.js` | Node test of `assets/js/stats.js` against numbers computed independently in Python. |
 | `tests/ref_stats.py` | Independent Python implementation of the Trends statistics (test reference only). |
 | `tests/sample_data.py`, `tests/make_fixtures.py` | Deterministic sample history (weekends, a failed source, an all-failed day) and the fixture generator. |
