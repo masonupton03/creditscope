@@ -95,3 +95,47 @@ universe. Every figure shows its source concept and filing period.
 2. Whether to rely on the per-company `data.sec.gov` API (simple, but the SEC reuse statement names sec.gov) or the nightly
    `companyfacts.zip` on `www.sec.gov` (clearly covered, but a very large download; size not stated in the pages read).
 3. Whether `company_tickers_mf.json` lists ETFs, to decide whether ETFs appear in this section.
+
+---
+
+## Public dataset design (decided 2026-11-15)
+
+The public repository will hold a **compact, reproducible dataset** and nothing else from the SEC:
+
+| Stored | Not stored |
+|---|---|
+| Per company one file `explorer/sec/company/<TICKER>.json` (< 60 KB, enforced by a test): fiscal-year values for each metric, the tag that supplied each value, period start/end, form, filing date, accession number (for the filing link), fiscal-year label, coverage report, automatic data checks | Raw company-facts JSON, filings, exhibits, PDFs, or any price data |
+| `explorer/sec/index.json`: company list for search, with latest period end and filing date | Anything from a market-data provider |
+| In each file: `reducerVersion` and `sourceDigest` (SHA-256 of the SEC response it was reduced from), `generated` time | Contact address (it lives only in the `SEC_USER_AGENT` secret) |
+
+**Reproducible** means: the code in `fundamentals/` plus the SEC's response for that company yields the same file, and the recorded
+`sourceDigest` shows whether a later rebuild used different input. Reducer rules are covered by `tests/test_fundamentals.py`.
+Estimated size for 30 companies: well under 2 MB; 500 companies about 10 MB, so keep the universe modest.
+
+## Companies planned first: Microsoft, Apple, Walmart, JPMorgan Chase
+
+Their fiscal calendars differ, which the reducer handles by labelling a year with the year its period ends (Microsoft June,
+Apple late September, Walmart 31 January, JPMorgan December; tested on invented numbers with those calendars). Expected
+non-standard shapes, **not yet confirmed against real data (no SEC request has been made)**:
+
+- **JPMorgan (bank):** no cost of revenue, gross profit or operating income; revenue is the total net revenue tag
+  (`RevenuesNetOfInterestExpense` is accepted as a last fallback; gross interest income is never used as revenue); cash may be
+  "cash and due from banks". Missing items are left blank and listed under "Not reported under the standard tags".
+- **Apple:** revenue tagged `RevenueFromContractWithCustomerExcludingAssessedTax`; debt = non-current plus current portion of
+  long-term debt; **commercial paper is not included** (the Fundamentals page says what "Debt" means).
+- **Walmart:** consolidated equity versus equity attributable to shareholders can differ (noncontrolling interest); the automatic
+  balance-identity check flags a gap above 2 %.
+- **Microsoft:** a June year end and tag changes over time are handled by the tag priority list; the stored tag shows which applied.
+
+## Verification procedure once the contact email exists (needs your approval before any request)
+
+1. **Build four companies:** `SEC_USER_AGENT="CreditScope educational project <mailbox>" python -m fundamentals build --tickers MSFT,AAPL,WMT,JPM --out /tmp/sec-check`
+   (from the workflow artifact or locally). About 6 requests.
+2. **Automatic re-confirmation:** `python -m fundamentals verify MSFT --out /tmp/sec-check --sheet msft.md`. Each stored value is
+   re-fetched through a *different* SEC endpoint (`companyconcept`) and compared (value, period and accession). Any mismatch fails.
+3. **Manual comparison with the original filing (the real check):** open `msft.md`; each row links to the filing index. In the
+   10-K's financial statements find the figure, remember that statements print millions or thousands, and tick the box. Do at
+   least revenue, net income, total assets, total liabilities and operating cash flow for the latest **three** fiscal years of each company.
+4. Read the page "Data checks and coverage" for each company; every flag needs an explanation (restatement, minority interest,
+   acquisition) or a code fix. A discrepancy is never fixed by editing a number.
+5. Record the result (date, who checked, what matched) in this file before any real data is committed or deployed.

@@ -381,3 +381,17 @@ def test_verify_command_needs_the_contact_and_a_built_file(monkeypatch, capsys, 
     assert cli.run_verify(args, "CreditScope team@project.invalid", client=mock.client(sleep=lambda s: None)) == 0
     assert (tmp_path / "sheet.md").read_text().startswith("# Verification sheet: AAA")
     assert "team@project.invalid" not in capsys.readouterr().out + (tmp_path / "sheet.md").read_text()
+
+
+def test_files_record_the_reducer_version_and_a_digest_of_their_source_without_embedding_it():
+    facts = company({"Revenues": {"USD": [fact("2023-12-31", 100, start="2023-01-01")]}}, 7)
+    a, b = R.reduce_company(facts, "T", generated="g"), R.reduce_company(json.loads(json.dumps(facts)), "T", generated="g")
+    assert a == b and a["reducerVersion"] == R.REDUCER_VERSION and re.fullmatch(r"[0-9a-f]{64}", a["sourceDigest"])
+    changed = json.loads(json.dumps(facts)); changed["facts"]["us-gaap"]["Revenues"]["units"]["USD"][0]["val"] = 101
+    assert R.reduce_company(changed, "T", generated="g")["sourceDigest"] != a["sourceDigest"]          # any change in the SEC data changes the digest
+    assert "facts" not in a and "units" not in json.dumps(a)                                           # the raw response is not carried along
+
+
+def test_published_company_files_stay_compact():
+    big = [f.stat().st_size for f in (ROOT / "explorer" / "sec-sample" / "company").glob("*.json")]
+    assert max(big) < 60_000, big          # 30 companies must stay well under a few MB in the public repository

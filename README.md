@@ -196,6 +196,38 @@ implementation (`tests/ref_stats.py`) on the same history file.
 | `pytest.ini`, `requirements-dev.txt` | Test configuration and dependencies (pytest). |
 | `.gitignore`, `README.md` | Ignored local files; this document. |
 
+## Research platform (optional additions)
+
+Beyond the assignment, the repository also holds a stock-research platform built on the same site: a security **Explorer**, SEC
+**Fundamentals**, a **Compare** tool, a **Portfolio** analytics page and an **About** page. None of it is needed by the daily
+pipeline or the three required pages, and the pipeline files above are unchanged. Prices on these pages are **simulated and
+labelled as such**; the only real data is SEC filings (fundamentals), and a private "personal edition" that runs only on the
+owner's computer and never publishes market data or holdings. See `docs/portfolio-dashboard.md`, `docs/personal-edition.md`,
+`docs/sec-edgar-plan.md` and `docs/explorer-data-sources.md`.
+
+| Path | What it does |
+|---|---|
+| `explorer.html`, `fundamentals.html`, `compare.html`, `portfolio.html`, `platform.html` | Explorer, Fundamentals, Compare, Portfolio and About pages. |
+| `assets/css/explorer.css`, `assets/css/portfolio.css` | Styles for the research pages (sub-navigation, charts, tables). |
+| `assets/js/finance.js` | Return, volatility, drawdown, beta and total-return calculations (browser and Node). |
+| `assets/js/search.js`, `assets/js/picker.js`, `assets/js/xlinks.js` | Security search, the shared search box, and consistent links between pages. |
+| `assets/js/explorer.js` | Explorer page. |
+| `assets/js/compare-calc.js`, `assets/js/compare.js` | Comparison calculations and the Compare page. |
+| `assets/js/fundamentals-calc.js`, `assets/js/fundamentals.js` | Financial-statement ratios and the Fundamentals page. |
+| `assets/js/portfolio.js`, `assets/js/portfolio-page.js`, `assets/js/redact.js` | Portfolio analytics (time-weighted return, risk, concentration), the Portfolio page, and the hide-everything view. |
+| `explorer/sample/index.json`, `explorer/sample/series/*.json`, `explorer/sample/portfolio.json` | Simulated securities, price histories and demo portfolio (generated, not real data). |
+| `explorer/sec/index.json`, `explorer/sec-sample/index.json`, `explorer/sec-sample/company/*.json` | SEC company list placeholder (empty until a live build is approved) and four fictional demonstration companies. |
+| `fundamentals/*.py`, `fundamentals/universe.txt` | SEC EDGAR pipeline: tag map, reducer, polite client, build and verify commands, simulated sample. Needs the `SEC_USER_AGENT` secret for live use. |
+| `personal/*.py` | Private personal edition: credential storage outside the repository, market-data client, local server, portfolio storage. |
+| `scripts/make_explorer_sample.py`, `scripts/make_portfolio_sample.py` | Generate the simulated sample data. |
+| `scripts/browser-audit/*` | Optional real-browser audits (accessibility, responsiveness, privacy, offline); see its README. |
+| `docs/*.md`, `docs/permission-requests/*.md`, `docs/fundamentals-workflow.example.yml` | Design notes, data-licensing research, unsent permission-request drafts, the rubric audit, launch checklist, and an inactive workflow example. |
+| `tests/test_explorer.py`, `tests/test_compare.py`, `tests/test_fundamentals.py`, `tests/test_portfolio.py`, `tests/test_portfolio_private.py`, `tests/test_personal.py`, `tests/test_pages.py`, `tests/test_readme.py` | Tests of the research platform: calculations against independent references, privacy and security, accessibility structure, README completeness. |
+| `tests/ref_finance.py`, `tests/ref_compare.py`, `tests/ref_portfolio.py`, `tests/ref_fundamentals.py` | Independent Python implementations of each calculation (test references only). |
+| `tests/mock_alpaca.py`, `tests/make_explorer_fixtures.py` | A local mock of the market-data API and the generator of the Explorer fixtures. |
+| `tests/js/*.js` | Node tests and cross-language check scripts for the browser calculations. |
+| `tests/fixtures/explorer_expected.json`, `tests/fixtures/nasdaq-SPY.json`, `tests/fixtures/sample/*` | Expected Explorer numbers, a real saved Nasdaq response, and the sample history fixtures. |
+
 ## Notes and limits
 
 * Quotes are delayed public data from Nasdaq, for information only; this is not investment advice.

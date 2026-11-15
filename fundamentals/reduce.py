@@ -10,9 +10,19 @@ Rules (all covered by tests/test_fundamentals.py):
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import date, datetime, timezone
 
 from . import concepts as C
+
+
+REDUCER_VERSION = 2          # bump when the reduction rules change: published files record which rules produced them
+
+
+def source_digest(company: dict) -> str:
+    """SHA-256 of the SEC response this file was reduced from (canonical JSON). The raw response itself is never committed."""
+    return hashlib.sha256(json.dumps(company, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
 def _days(a: str, b: str) -> int:
@@ -152,4 +162,5 @@ def reduce_company(company: dict, ticker: str, generated: str = None, synthetic:
         "generated": generated or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "latestFiled": max(filed) if filed else None, "latestPeriodEnd": max(ends) if ends else None, "metrics": metrics,
         "coverage": coverage(metrics), "checks": quality_checks(metrics),
+        "reducerVersion": REDUCER_VERSION, "sourceDigest": source_digest(company),
     }
