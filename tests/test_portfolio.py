@@ -132,7 +132,8 @@ def results():
 def test_js_matches_independent_reference(results, name):
     js, py = results[0][name], results[1][name]
     assert not js.get("errors"), js
-    assert js["basis"] == py["basis"] and js["startDate"] == py["startDate"]
+    assert js["basis"] == py["basis"] and js["startDate"] == py["startDate"] and js["mode"] == py["mode"]
+    assert [(e["input"], e["date"], e["effectiveDate"], e["status"]) for e in sorted(js["ledger"], key=lambda e: e["input"])] == sorted(py["ledger"])
     for period, p in py["perf"].items():
         compare_perf(js["perf"][period], p, f"{name} {period}")
     for k, v in py["totals"].items():
@@ -175,3 +176,26 @@ def test_oversell_and_invalid_ledgers_are_rejected_not_computed():
     assert out[2]["errors"][0]["code"] == "NO_PRICES"
     with pytest.raises(ref.Oversell):
         ref.analyze(over, s)
+
+
+@pytest.mark.parametrize("name", ["basic", "total_basis_all_known"])
+@pytest.mark.parametrize("mode", ["cash", "reinvested", "price"])
+def test_every_benchmark_methodology_matches_the_reference(name, mode):
+    pf, s = SCENARIOS[name]()
+    js = run_js([{"portfolio": pf, "series": s, "mode": mode}])[0]
+    py = ref.analyze(pf, s, mode=mode)
+    assert js["mode"] == py["mode"] == mode
+    for period, p in py["perf"].items():
+        compare_perf(js["perf"][period], p, f"{name} {mode} {period}")
+
+
+def test_modes_give_different_benchmark_numbers_and_auto_follows_recorded_reinvestment():
+    pf, s = SCENARIOS["total_basis_all_known"]()
+    cash, reinv, price = (run_js([{"portfolio": pf, "series": s, "mode": m}])[0]["perf"]["ITD"]["benchmarkReturn"] for m in ("cash", "reinvested", "price"))
+    assert price < cash < reinv                      # dividends add, and reinvesting them adds more than leaving them idle
+    auto = run_js([{"portfolio": pf, "series": s}])[0]
+    assert auto["mode"] == "cash" and "not reinvested" in auto["basisLabel"]
+    pf2 = json.loads(json.dumps(pf))
+    pf2["transactions"].append(tx("2022-06-01", "buy", symbol="XOM", shares=1, price=70.0, reinvest=True))
+    auto2 = run_js([{"portfolio": pf2, "series": s}])[0]
+    assert auto2["mode"] == "reinvested" and "reinvested on the ex-date" in auto2["basisLabel"]

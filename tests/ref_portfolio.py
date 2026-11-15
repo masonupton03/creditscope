@@ -104,16 +104,19 @@ def _run(ledger, cal, series, held, auto_div, with_div):
             "fees": fees, "div": dict(div_by_symbol)}
 
 
-def analyze(portfolio, series, benchmark="SPY"):
+def analyze(portfolio, series, benchmark="SPY", mode="auto"):
     bench = series[benchmark]
     cal = bench["dates"]
     n = len(cal)
-    ledger = []
+    ledger, applied = [], []
     for k, tx in enumerate(portfolio["transactions"]):
         t = dict(tx, input=k, fee=tx.get("fee") or 0.0, external=bool(tx.get("external")))
         if t["date"] > cal[-1]:
+            applied.append((k, t["date"], None, "after_end"))
             continue
         t["idx"] = bisect.bisect_left(cal, t["date"])
+        eff = cal[t["idx"]]
+        applied.append((k, t["date"], eff, "before_start" if t["date"] < cal[0] else "same_day" if eff == t["date"] else "next_trading_day"))
         if t["type"] in ("buy", "sell"):
             t["adj"] = t["shares"] * split_factor(series.get(t["symbol"], {}), t["date"])
         ledger.append(t)
@@ -136,7 +139,12 @@ def analyze(portfolio, series, benchmark="SPY"):
             if cal[0] < ex <= cal[-1]:
                 sched[bisect.bisect_left(cal, ex)] += amount
         auto_div[sym] = dict(sched)
-    basis = "total" if bench.get("dividends") is not None and not unknown else "price"
+    has_reinvest = any(t["type"] == "buy" and t.get("reinvest") for t in ledger)
+    wanted = mode if mode in ("cash", "reinvested", "price") else "auto"
+    chosen = ("reinvested" if has_reinvest else "cash") if wanted == "auto" else wanted
+    if chosen != "price" and (bench.get("dividends") is None or unknown):
+        chosen = "price"
+    basis = "price" if chosen == "price" else "total"
     first = ledger[0]["idx"]
     full = _run(ledger, cal, series, held, auto_div, True)
     sim = full if basis == "total" else _run(ledger, cal, series, held, auto_div, False)
@@ -151,8 +159,18 @@ def analyze(portfolio, series, benchmark="SPY"):
         daily[i] = (sim["value"][i] - sim["flow"][i]) / prev - 1.0 if prev > 0 else 0.0
         logs[i] = logs[i - 1] + math.log1p(daily[i])
     level = {i: math.exp(v) for i, v in logs.items()}
-    bl = rf.level_series(bench, basis)
-    bench_r = {i: bl[i] / bl[i - 1] - 1.0 for i in range(1, n)}
+    bl = rf.level_series(bench, "total" if chosen == "reinvested" else "price")
+    bcredit = rf.credited_dividends(bench) if chosen == "cash" else {}
+    bcum, running = [], 0.0
+    for i in range(n):
+        running += bcredit.get(i, 0.0)
+        bcum.append(running)
+
+    def bench_value(a, i):
+        """Growth of one unit of the benchmark from day a to day i under the chosen dividend treatment."""
+        if chosen == "cash":
+            return (bench["close"][i] + bcum[i] - bcum[a]) / bench["close"][a]
+        return bl[i] / bl[a]
     cum_flow = []
     run = 0.0
     for f in full["flow"]:
@@ -177,7 +195,7 @@ def analyze(portfolio, series, benchmark="SPY"):
         weighted = sum(f * (days - (rf.to_date(cal[i]) - rf.to_date(cal[a])).days) / days for i, f in flows)
         den = sim["value"][a] + weighted
         rets = [daily[i] for i in range(a + 1, b + 1)]
-        rb = [bench_r[i] for i in range(a + 1, b + 1)]
+        rb = [bench_value(a, i) / bench_value(a, i - 1) - 1.0 for i in range(a + 1, b + 1)]
         beta = corr = None
         if len(rets) >= 60:
             vb = rf.cov(rb, rb)
@@ -191,7 +209,7 @@ def analyze(portfolio, series, benchmark="SPY"):
             "netFlows": net, "investmentGain": full["value"][b] - full["value"][a] - net,
             "twr": twr, "annualizedTwr": math.expm1(math.log1p(twr) * 365.25 / days) if days >= 365 else None,
             "modifiedDietz": (sim["value"][b] - sim["value"][a] - net) / den if den > 0 else None,
-            "benchmarkReturn": bl[b] / bl[a] - 1.0, "excess": twr - (bl[b] / bl[a] - 1.0),
+            "benchmarkReturn": bench_value(a, b) - 1.0, "excess": twr - (bench_value(a, b) - 1.0),
             "volatility": statistics.stdev(rets) * math.sqrt(252) if len(rets) >= 20 else None,
             "benchmarkVolatility": statistics.stdev(rb) * math.sqrt(252) if len(rb) >= 20 else None,
             "beta": beta, "correlation": corr, "maxDrawdown": rf.drawdown(lv, list(range(a, b + 1)), cal),
@@ -212,7 +230,7 @@ def analyze(portfolio, series, benchmark="SPY"):
     weights = sorted((r["marketValue"] / invested for r in rows.values()), reverse=True) if invested > 0 else []
     hhi = sum(w * w for w in weights)
     return {
-        "basis": basis, "startDate": cal[start], "perf": perf, "holdings": rows,
+        "basis": basis, "mode": chosen, "ledger": applied, "startDate": cal[start], "perf": perf, "holdings": rows,
         "totals": {"totalValue": total, "marketValue": invested, "cash": full["cash_end"],
                    "costBasis": sum(r["costBasis"] for r in rows.values()),
                    "unrealized": sum(r["unrealized"] for r in rows.values()), "realized": full["realized"],

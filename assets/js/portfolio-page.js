@@ -9,7 +9,9 @@
   const $ = id => document.getElementById(id);
   const E = CS.esc;
   const PERSONAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !!document.querySelector('meta[name="creditscope-personal"]');
-  const state = { period: 'ITD', pf: null, rev: 'new', series: {}, failed: {}, result: null, meta: {} };
+  const state = { period: 'ITD', mode: 'auto', view: 'real', pf: null, rev: 'new', series: {}, failed: {}, result: null, meta: {} };
+  const priv = () => PERSONAL && state.view !== 'sample';      // true while real (private) holdings are on screen
+  const masked = () => state.view === 'mask';
   const charts = {};
 
   /* ---------- data ---------- */
@@ -18,7 +20,7 @@
     if (!res.ok) { let msg = ''; try { msg = (await res.json()).error || ''; } catch (e) { /* body drained */ } throw new Error(msg || url + ' returned HTTP ' + res.status); }
     return res.json();
   }
-  const seriesUrl = s => (PERSONAL ? 'api/series/' + encodeURIComponent(s) : 'explorer/sample/series/' + encodeURIComponent(s) + '.json');
+  const seriesUrl = s => (priv() ? 'api/series/' + encodeURIComponent(s) : 'explorer/sample/series/' + encodeURIComponent(s) + '.json');
   async function ensureSeries(symbols) {
     await Promise.all(symbols.filter(s => !state.series[s]).map(async s => {
       try { state.series[s] = await getJSON(seriesUrl(s)); delete state.failed[s]; } catch (e) { state.failed[s] = e.message; }
@@ -27,11 +29,11 @@
   const symbolsOf = pf => Array.from(new Set((pf.transactions || []).filter(t => t.type === 'buy').map(t => t.symbol).concat([pf.benchmark || 'SPY'])));
 
   /* ---------- formatting ---------- */
-  const money = (v, d) => (v == null ? '—' : (v < 0 && Math.round(Math.abs(v) * 100) > 0 ? '−' : '') + '$' + CS.num(Math.abs(v), d == null ? 2 : d));
-  const smoney = v => (v == null ? '—' : (v > 0 ? '+' : '') + money(v));
+  const money = (v, d) => (v == null ? '—' : masked() ? '$•••' : (v < 0 && Math.round(Math.abs(v) * 100) > 0 ? '−' : '') + '$' + CS.num(Math.abs(v), d == null ? 2 : d));
+  const smoney = v => (v == null ? '—' : masked() ? '$•••' : (v > 0 ? '+' : '') + money(v));
   const pct = (v, d) => (v == null ? '—' : CS.pct(v * 100, d));
   const plain = (v, d) => (v == null ? '—' : (v < 0 && Math.round(Math.abs(v) * 1000) > 0 ? '−' : '') + CS.num(Math.abs(v) * 100, d == null ? 1 : d) + '%');
-  const shares = v => CS.num(v, Math.abs(v - Math.round(v)) < 1e-9 ? 0 : 4);
+  const shares = v => masked() ? '•••' : CS.num(v, Math.abs(v - Math.round(v)) < 1e-9 ? 0 : 4);
   const dir = v => CS.dir(v == null ? null : v);
   const tile = (l, v, s, cls, basis) => '<div class="metric"><span class="l">' + l + '</span><span class="v ' + (cls || '') + '">' + v + '</span><span class="s">' + s + '</span>' +
     (basis ? '<span class="basis ' + basis + '">' + (basis === 'total' ? 'dividends in cash' : 'price return') + '</span>' : '') + '</div>';
@@ -133,15 +135,27 @@
       (r.totals.cash > 0.005 ? '<tr><td><span class="tk">Cash</span></td><td></td><td></td><td></td><td class="r">' + money(r.totals.cash) + '</td><td class="r">' + plain(r.totals.cash / r.totals.totalValue) + '</td><td></td><td></td></tr>' : '');
   }
 
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekday = iso => WD[new Date(iso + 'T00:00:00Z').getUTCDay()];
   function renderTransactions() {
+    const r = state.result, by = {};
+    if (r && r.ledger) r.ledger.forEach(e => { by[e.input] = e; });
     const txs = state.pf.transactions.map((t, i) => Object.assign({ i }, t)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.i - a.i));
-    $('txCap').textContent = PERSONAL ? 'Stored privately in a file on this computer, outside the code repository. Nothing is sent anywhere and no brokerage is connected.'
+    $('txCap').textContent = priv() ? 'Stored privately in a file on this computer, outside the code repository. Nothing is sent anywhere and no brokerage is connected. Each transaction keeps the date you entered; “Applied on” is the trading day the calculations use.'
       : 'Simulated demonstration data, read-only. Entering your own holdings is possible only in the private personal edition running on your computer.';
-    $('txForm').hidden = !PERSONAL;
-    $('txBody').innerHTML = txs.map(t => '<tr><td>' + CS.date(t.date) + '</td><td>' + E(t.type) + (t.external ? ' <small class="nm">(outside-funded)</small>' : '') + '</td><td class="tk">' + E(t.symbol || '') + '</td>' +
+    $('txForm').hidden = !priv();
+    const applied = e => !e ? '' : e.status === 'same_day' ? '<span class="nm">same day</span>' : e.status === 'next_trading_day' ? CS.date(e.effectiveDate) + '<br><small class="nm">next trading day</small>'
+      : e.status === 'before_start' ? CS.date(e.effectiveDate) + '<br><small class="nm">first price date</small>' : '<small class="nm">not applied: after the last price</small>';
+    $('txBody').innerHTML = txs.map(t => '<tr><td>' + weekday(t.date) + ' ' + CS.date(t.date) + '</td><td>' + applied(by[t.i]) + '</td><td>' + E(t.type) + (t.external ? ' <small class="nm">(outside-funded)</small>' : '') + (t.reinvest ? ' <small class="nm">(reinvested)</small>' : '') + '</td><td class="tk">' + E(t.symbol || '') + '</td>' +
       '<td class="r">' + (t.shares != null ? shares(t.shares) : '') + '</td><td class="r">' + (t.price != null ? money(t.price) : '') + '</td>' +
       '<td class="r">' + (t.amount != null ? money(t.amount) : t.shares != null ? money(t.shares * t.price + (t.type === 'buy' ? 1 : -1) * (t.fee || 0)) : '') + '</td>' +
-      '<td class="r">' + (PERSONAL ? '<button class="rm" type="button" data-i="' + t.i + '" aria-label="Delete this transaction">Delete</button>' : '') + '</td></tr>').join('');
+      '<td class="r">' + (priv() ? '<button class="rm" type="button" data-i="' + t.i + '" aria-label="Delete this transaction">Delete</button>' : '') + '</td></tr>').join('');
+    const sug = r && r.dividendSuggestions || [];
+    $('divBar').hidden = !(priv() && sug.length);
+    if (sug.length) {
+      $('divBtn').textContent = 'Record ' + sug.length + ' dividend' + (sug.length === 1 ? '' : 's') + ' from market data as transactions';
+      $('divCap').textContent = 'Total ' + money(sug.reduce((a, d) => a + d.amount, 0)) + ' for shares you held on the ex-dates. Once recorded they become your own entries (you can then reinvest them); automatic crediting stops for those securities.';
+    }
   }
 
   function renderAll() {
@@ -158,12 +172,15 @@
       $('asOf').textContent = ''; $('holdCap').textContent = '';
       return;
     }
+    $('chValue').closest('.card').hidden = masked();
+    $('modeNote').textContent = r.basisLabel;
+    $('modeSel').value = state.mode;
     renderSummary(r); renderPerf(r); renderCharts(r); renderConcentration(r); renderHoldings(r);
   }
 
   async function analyzeNow() {
     await ensureSeries(symbolsOf(state.pf));
-    const r = Portfolio.analyze(state.pf, state.series);
+    const r = Portfolio.analyze(state.pf, state.series, { mode: state.mode });
     if (r.errors && r.errors.length) {
       const failed = Object.keys(state.failed);
       if (failed.length && r.errors[0].code === 'NO_PRICES') r.errors[0].message += ' (' + failed.map(s => s + ': ' + state.failed[s]).join('; ') + ')';
@@ -193,6 +210,15 @@
     const type = $('fType').value;
     document.querySelectorAll('#txForm [data-for]').forEach(el => { el.hidden = el.dataset.for.split(' ').indexOf(type) < 0; });
   }
+  function bindControls() {
+    $('modeSel').addEventListener('change', async () => { state.mode = $('modeSel').value; syncHash(); state.result = await analyzeNow(); renderAll(); });
+    $('divBtn').addEventListener('click', () => {
+      const sug = state.result.dividendSuggestions;
+      if (!sug.length || !window.confirm('Add ' + sug.length + ' dividend transactions?')) return;
+      commit(state.pf.transactions.concat(sug.map(d => ({ id: newId(), date: d.date, type: 'dividend', symbol: d.symbol, amount: Math.round(d.amount * 100) / 100, group: 'mkt' }))));
+    });
+    $('viewSel').addEventListener('change', () => { state.view = $('viewSel').value; syncHash(); location.reload(); });
+  }
   function bindForm() {
     $('fType').addEventListener('change', syncForm); syncForm();
     $('fDate').value = new Date().toISOString().slice(0, 10);
@@ -201,7 +227,13 @@
       e.preventDefault();
       const type = $('fType').value, t = { id: newId(), date: $('fDate').value, type };
       const n = id => (document.getElementById(id).value === '' ? NaN : Number(document.getElementById(id).value));
-      if (['buy', 'sell', 'dividend'].indexOf(type) >= 0) t.symbol = $('fSymbol').value.trim().toUpperCase();
+      if (['buy', 'sell', 'dividend', 'drip'].indexOf(type) >= 0) t.symbol = $('fSymbol').value.trim().toUpperCase();
+      if (type === 'drip') {
+        const g = 'g' + Math.random().toString(36).slice(2, 8), sym = $('fSymbol').value.trim().toUpperCase();
+        const div = { id: newId(), date: t.date, type: 'dividend', symbol: sym, amount: n('fAmount'), group: g };
+        const buy = { id: newId(), date: t.date, type: 'buy', symbol: sym, shares: n('fShares'), price: n('fPrice'), fee: 0, external: false, reinvest: true, group: g };
+        return commit(state.pf.transactions.concat([div, buy]));
+      }
       if (type === 'buy' || type === 'sell') { t.shares = n('fShares'); t.price = n('fPrice'); t.fee = $('fFee').value === '' ? 0 : n('fFee'); t.external = $('fExternal').checked; }
       else t.amount = n('fAmount');
       commit(state.pf.transactions.concat([t])).then(() => { if (!$('txMsg').hidden) return; ['fShares', 'fPrice', 'fAmount', 'fSymbol'].forEach(id => { $(id).value = ''; }); });
@@ -213,22 +245,40 @@
     });
   }
 
+  /* ---------- address-bar state: period, benchmark methodology and view only (never holdings) ---------- */
+  function parseHash() {
+    const q = new URLSearchParams(location.hash.slice(1).replace(/^(\w+)$/, 'p=$1'));
+    if (Portfolio.PERIODS.indexOf(q.get('p')) >= 0) state.period = q.get('p');
+    if (Portfolio.MODES.indexOf(q.get('mode')) >= 0) state.mode = q.get('mode');
+    if (['real', 'mask', 'sample'].indexOf(q.get('view')) >= 0 && PERSONAL) state.view = q.get('view');
+  }
+  function syncHash() {
+    const q = new URLSearchParams(); q.set('p', state.period);
+    if (state.mode !== 'auto') q.set('mode', state.mode);
+    if (state.view !== 'real') q.set('view', state.view);
+    history.replaceState(null, '', '#' + q.toString());
+  }
+
   /* ---------- start ---------- */
   async function start() {
     $('periods').addEventListener('click', e => {
       const b = e.target.closest('button[data-p]'); if (!b || !state.result || !state.result.perf) return;
-      state.period = b.dataset.p; history.replaceState(null, '', '#' + state.period); renderPerf(state.result); renderCharts(state.result);
+      state.period = b.dataset.p; syncHash(); renderPerf(state.result); renderCharts(state.result);
     });
-    const h = location.hash.slice(1); if (Portfolio.PERIODS.indexOf(h) >= 0) state.period = h;
+    parseHash();
+    window.addEventListener('hashchange', () => location.reload());
     $('themeBtn').addEventListener('click', () => setTimeout(() => state.result && !(state.result.errors && state.result.errors.length) && renderCharts(state.result), 30));
     try {
-      if (PERSONAL) {
+      if (PERSONAL) { $('viewBar').hidden = false; $('viewSel').value = state.view; }
+      if (priv()) {
         const r = await getJSON('api/portfolio'); state.pf = r.portfolio; state.rev = r.revision;
         try { state.meta = (await getJSON('private-data/index.json')).meta || {}; } catch (e) { state.meta = {}; }
         const f = String(state.meta.feed || '').toLowerCase();
         $('privateBanner').hidden = false;
-        $('privateBanner').firstElementChild.innerHTML = '<b>Private: real holdings, local only.</b> Your ledger is stored outside the code repository and served to this computer only; it is never published, cached offline or put in browser storage. Do not screenshot or screen-share this page.' +
-          (f === 'iex' || !f ? ' <b>Prices come from the IEX feed (one exchange).</b> Trade-price returns track the market closely, but <b>volume is not shown here</b>: IEX volume is a small fraction of consolidated market volume.' : '');
+        $('privateBanner').firstElementChild.innerHTML = masked()
+          ? '<b>Dollar amounts and share counts are hidden.</b> Percentages, symbols and weights are still real, so this is safer for screenshots but is <b>not anonymous</b>. Use “Show the simulated sample instead” to hide holdings entirely.'
+          : '<b>Private: real holdings, local only.</b> Your ledger is stored outside the code repository and served to this computer only; it is never published, cached offline or put in browser storage. Do not screenshot or screen-share this page; use the View menu for a safe version.';
+        if (f === 'iex' || !f) $('privateBanner').firstElementChild.innerHTML += ' <b>Prices come from the IEX feed (one exchange).</b> Trade-price returns track the market closely, but <b>volume is not shown here</b>: IEX volume is a small fraction of consolidated market volume.';
       } else {
         state.pf = await getJSON('explorer/sample/portfolio.json');
         state.meta = (await getJSON('explorer/sample/index.json')).meta || {};
@@ -240,6 +290,7 @@
     }
     state.result = await analyzeNow();
     renderAll();
+    bindControls();
     if (PERSONAL) bindForm();
     CS.doneLoading();
   }

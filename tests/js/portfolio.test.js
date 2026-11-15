@@ -124,3 +124,51 @@ test('chart arrays rebase to 100 and share the period start', () => {
   close(c.twr[0], 100, 'start'); close(c.twr[4], 133.1, 'end'); close(c.bench[4], 100, 'flat benchmark'); assert.equal(c.dates.length, 5);
   assert.ok(c.drawdown.every(v => v <= 0));
 });
+
+test('benchmark dividend treatment: price < cash < reinvested, each labelled', () => {
+  const spy = mk([100, 100, 100, 100, 100, 100], { type: 'ETF', dividends: [[D[2], 2], [D[4], 2]] });
+  const x = mk(new Array(6).fill(100), { dividends: [] });
+  const go = mode => P.analyze({ version: 1, transactions: [tx(0, 'buy', { symbol: 'X', shares: 1, price: 100, external: true })] }, { SPY: spy, X: x }, { mode });
+  close(go('price').perf.ITD.benchmarkReturn, 0, 'price');
+  close(go('cash').perf.ITD.benchmarkReturn, 0.04, 'cash: 4 of dividends on 100');
+  close(go('reinvested').perf.ITD.benchmarkReturn, 1.02 * 1.02 - 1, 'reinvested compounds');
+  assert.ok(/not reinvested/.test(go('cash').basisLabel) && /reinvested on the ex-date/.test(go('reinvested').basisLabel));
+  assert.equal(go('auto').mode, 'cash');
+});
+
+test('a portfolio that holds the benchmark with dividends as cash matches the cash benchmark exactly', () => {
+  const spy = mk([100, 101, 99, 103, 104, 108], { type: 'ETF', dividends: [[D[2], 1.5], [D[4], 1]] });
+  const r = P.analyze({ version: 1, transactions: [tx(0, 'buy', { symbol: 'SPY', shares: 5, price: 100, external: true })] }, { SPY: spy }, { mode: 'cash' });
+  close(r.perf.ITD.twr, r.perf.ITD.benchmarkReturn, 'portfolio of SPY == SPY with cash dividends', 1e-12);
+  const c = P.chart(r, 'ITD'); close(c.twr[5], c.bench[5], 'chart lines coincide', 1e-9);
+});
+
+test('ledger keeps the actual date and reports the effective trading date separately', () => {
+  const sat = '2026-01-10';
+  const r = run([{ date: sat, type: 'buy', symbol: 'X', shares: 1, price: 100, external: true }, tx(0, 'deposit', { amount: 1 }), { date: '2030-01-01', type: 'deposit', amount: 5 }],
+                { SPY: flat(8), X: mk([100, 100, 100, 100, 100, 100, 100, 100]) });
+  const by = Object.fromEntries(r.ledger.map(e => [e.input, e]));
+  assert.equal(by[0].date, sat); assert.equal(by[0].effectiveDate, D[5]); assert.equal(by[0].status, 'next_trading_day');
+  assert.equal(by[1].status, 'same_day'); assert.equal(by[2].effectiveDate, null); assert.equal(by[2].status, 'after_end');
+});
+
+test('automatic dividends are listed so they can become explicit transactions', () => {
+  const x = mk(new Array(5).fill(100), { dividends: [[D[2], 1]] });
+  const r = run([tx(0, 'buy', { symbol: 'X', shares: 10, price: 100, external: true })], { SPY: flat(5), X: x });
+  assert.deepEqual(r.dividendSuggestions, [{ date: D[2], symbol: 'X', perShare: 1, shares: 10, amount: 10 }]);
+  // recorded explicitly (with a reinvestment) gives the same account value as the automatic version, minus the reinvested cash
+  const explicit = run([tx(0, 'buy', { symbol: 'X', shares: 10, price: 100, external: true }), tx(2, 'dividend', { symbol: 'X', amount: 10 }),
+                        tx(2, 'buy', { symbol: 'X', shares: 0.1, price: 100, reinvest: true })], { SPY: flat(5), X: x });
+  assert.equal(explicit.mode, 'reinvested'); close(explicit.totals.cash, 0, 'dividend fully reinvested'); close(explicit.holdings[0].shares, 10.1, 'shares');
+  close(explicit.totals.totalValue, 1010, 'value unchanged by reinvesting'); close(explicit.perf.ITD.twr, 0.01, 'same return');
+});
+
+test('dividend suggestions skip what you already recorded and follow later dividends', () => {
+  const x = mk(new Array(8).fill(100), { dividends: [[D[2], 1], [D[5], 1]] });
+  const base = [tx(0, 'buy', { symbol: 'X', shares: 10, price: 100, external: true }), tx(2, 'dividend', { symbol: 'X', amount: 10 })];
+  const r = run(base, { SPY: flat(8), X: x });
+  assert.deepEqual(r.dividendSuggestions.map(d => d.date), [D[5]]);                 // D[2] is recorded, D[5] is new
+  assert.equal(r.holdings[0].dividendBasis, 'manual'); close(r.totals.dividends, 10, 'automatic ones are off for this security');
+  const none = run([tx(0, 'buy', { symbol: 'X', shares: 10, price: 100, external: true })], { SPY: flat(8), X: mk(new Array(8).fill(100), { dividends: null }) });
+  assert.deepEqual(none.dividendSuggestions, []);
+});

@@ -25,3 +25,4 @@ td.note-row { color: var(--muted); font-size: 12.5px; }
 @media (max-width: 820px) { .pf-split, .pf-split.two { grid-template-columns: minmax(0, 1fr); } }
 
 table.t.pf-recon td { white-space: normal; }
+.ex-controls[hidden] { display: none; }

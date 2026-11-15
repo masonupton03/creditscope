@@ -70,6 +70,8 @@ def put(server, portfolio_obj, rev, **kw):
     (lambda p: p["transactions"][1].update(fee=-1), "fee must be zero"),
     (lambda p: p["transactions"][1].update(external="yes"), "external must be"),
     (lambda p: p["transactions"][1].update(id="t1"), "id must be unique"),
+    (lambda p: p["transactions"][1].update(reinvest="yes"), "reinvest must be"),
+    (lambda p: p["transactions"][1].update(group="bad group!"), "group must use"),
     (lambda p: p["transactions"][1].update(note="x" * 201), "note must be"),
     (lambda p: p.update(version=2), "version must be 1"),
     (lambda p: p.update(benchmark="not a ticker!"), "benchmark"),
@@ -82,6 +84,8 @@ def test_validation_rejects_bad_ledgers(mutate, fragment):
 
 def test_validation_accepts_a_good_ledger_and_rejects_non_objects():
     assert portfolio.validate(GOOD) == []
+    ok = json.loads(json.dumps(GOOD)); ok["transactions"][1].update(reinvest=True, group="g1")
+    assert portfolio.validate(ok) == []
     for bad in (None, [], "x", {"version": 1}, {"version": 1, "transactions": "no"}):
         assert portfolio.validate(bad)
     assert portfolio.validate({"version": 1, "transactions": [GOOD["transactions"][0]] * 5001})

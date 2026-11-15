@@ -17,9 +17,15 @@
   const RANK = { deposit: 0, buy: 1, dividend: 2, sell: 3, withdrawal: 4, fee: 5 };   // order within one day
   const PERIODS = ['1M', '3M', '6M', 'YTD', '1Y', '3Y', '5Y', 'ITD'];
   const MAX_TX = 5000, STALE_DAYS = 7, SHARE_TOL = 1e-9, CASH_TOL = 0.005;
+  const MODES = ['auto', 'cash', 'reinvested', 'price'];
+  const MODE_TEXT = {
+    cash: { portfolio: 'dividends as recorded in your ledger (cash unless you recorded a reinvestment)', bench: 'dividends held as cash, not reinvested' },
+    reinvested: { portfolio: 'dividends as recorded in your ledger, including your recorded reinvestments', bench: 'dividends reinvested on the ex-date' },
+    price: { portfolio: 'price return only (dividends excluded)', bench: 'price return only (dividends excluded)' }
+  };
   const LABELS = {
-    total: 'Time-weighted return, dividends received as cash, net of fees',
-    price: 'Time-weighted price return (dividends excluded on both sides)'
+    total: 'Time-weighted return, net of fees', price: 'Time-weighted price return (dividends excluded on both sides)',
+    cash: 'Time-weighted return, net of fees', reinvested: 'Time-weighted return, net of fees'
   };
 
   /* ---------- validation ---------- */
@@ -46,6 +52,7 @@
         if (!num(t.shares) || t.shares <= 0) bad('BAD_SHARES', 'shares must be a positive number');
         if (!num(t.price) || t.price <= 0) bad('BAD_PRICE', 'price must be a positive number');
         if (t.fee != null && (!num(t.fee) || t.fee < 0)) bad('BAD_FEE', 'fee must be zero or positive');
+        if (t.reinvest != null && typeof t.reinvest !== 'boolean') bad('BAD_FLAG', 'reinvest must be true or false');
       } else if (!num(t.amount) || t.amount <= 0) bad('BAD_AMOUNT', 'amount must be a positive number');
     });
     return errors;
@@ -75,12 +82,12 @@
     let cash = 0, realized = 0, fees = 0;
     const V = new Array(n).fill(0), CASH = new Array(n).fill(0), FLOW = new Array(n).fill(0);
     const incomplete = new Array(n).fill(false);
-    const divBySymbol = new Map(); const errors = []; let t = 0;
+    const divBySymbol = new Map(); const errors = []; const divEvents = []; let t = 0;
     for (let i = 0; i < n; i++) {
       if (includeDividends) {                                   // entitlement = shares held at the previous close
         ctx.autoDiv.forEach((byIdx, sym) => {
           const amt = byIdx.get(i), sh = shares.get(sym) || 0;
-          if (amt && sh > 0) { cash += amt * sh; divBySymbol.set(sym, (divBySymbol.get(sym) || 0) + amt * sh); }
+          if (amt && sh > 0) { cash += amt * sh; divBySymbol.set(sym, (divBySymbol.get(sym) || 0) + amt * sh); divEvents.push({ idx: i, symbol: sym, perShare: amt, shares: sh, amount: amt * sh }); }
         });
       }
       for (; t < txs.length && txs[t].idx === i; t++) {
@@ -126,7 +133,7 @@
       });
       V[i] = v; CASH[i] = cash;
     }
-    return { V, CASH, FLOW, incomplete, shares, lots, cash, realized, fees, divBySymbol, errors };
+    return { V, CASH, FLOW, incomplete, shares, lots, cash, realized, fees, divBySymbol, divEvents, errors };
   }
 
   /* ---------- time-weighted chain ---------- */
@@ -154,11 +161,12 @@
     // 1. order the ledger and map each transaction onto the trading calendar
     const raw = portfolio.transactions.map((t, input) => Object.assign({ input, fee: 0, external: false }, t, { fee: t.fee || 0, external: !!t.external }));
     raw.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : RANK[a.type] - RANK[b.type] || a.input - b.input));
-    const txs = []; let dropped = 0, early = 0;
+    const txs = []; let dropped = 0, early = 0; const ledger = [];
     raw.forEach(x => {
-      if (x.date > cal[n - 1]) { dropped++; return; }
+      if (x.date > cal[n - 1]) { dropped++; ledger.push({ input: x.input, date: x.date, effectiveDate: null, status: 'after_end' }); return; }
       if (x.date < cal[0]) early++;
       x.idx = Math.max(0, F.firstIndexOnOrAfter(cal, x.date));
+      ledger.push({ input: x.input, date: x.date, effectiveDate: cal[x.idx], status: x.date < cal[0] ? 'before_start' : cal[x.idx] === x.date ? 'same_day' : 'next_trading_day' });
       if (x.type === 'buy' || x.type === 'sell') { x.factor = splitFactor(series[x.symbol], x.date); x.adj = x.shares * x.factor; }
       txs.push(x);
     });
@@ -173,28 +181,43 @@
     const missing = held.filter(s => !series[s] || !series[s].dates || !series[s].dates.length);
     if (missing.length) return { errors: [{ index: -1, code: 'NO_PRICES', message: 'no price history for ' + missing.join(', ') + ' (sync them, or open them once in the Explorer)', symbols: missing }] };
     const pidx = new Map(); held.forEach(s => pidx.set(s, priceIndex(cal, series[s].dates)));
-    const autoDiv = new Map(); const unknownDiv = [];
+    const schedule = sr => {
+      const byIdx = new Map();
+      sr.dividends.forEach(([ex, amt]) => { if (ex > cal[0] && ex <= cal[n - 1]) { const i = F.firstIndexOnOrAfter(cal, ex); byIdx.set(i, (byIdx.get(i) || 0) + amt); } });
+      return byIdx;
+    };
+    const autoDiv = new Map(), allDiv = new Map(); const unknownDiv = [];
     held.forEach(s => {
       const d = series[s].dividends;
+      if (Array.isArray(d)) allDiv.set(s, schedule(series[s]));
       if (manualDiv.has(s)) return;
       if (!Array.isArray(d)) { unknownDiv.push(s); return; }
-      const byIdx = new Map();
-      d.forEach(([ex, amt]) => { if (ex > cal[0] && ex <= cal[n - 1]) { const i = F.firstIndexOnOrAfter(cal, ex); byIdx.set(i, (byIdx.get(i) || 0) + amt); } });
-      autoDiv.set(s, byIdx);
+      autoDiv.set(s, allDiv.get(s));
     });
     held.forEach(s => { if (!Array.isArray(series[s].splits)) warn('SPLITS_UNKNOWN', s + ': split history is not available, so share counts are not adjusted for any split'); });
     const benchKnown = Array.isArray(bench.dividends);
-    const basis = benchKnown && !unknownDiv.length ? 'total' : 'price';
-    if (basis === 'price') {
+    const wanted = MODES.indexOf(opts.mode) >= 0 ? opts.mode : 'auto';
+    const hasReinvest = txs.some(x => x.type === 'buy' && x.reinvest);
+    let mode = wanted === 'auto' ? (hasReinvest ? 'reinvested' : 'cash') : wanted;
+    if (mode !== 'price' && (!benchKnown || unknownDiv.length)) {
       const why = [].concat(benchKnown ? [] : [benchSym + ' (benchmark)'], unknownDiv);
       warn('PRICE_BASIS', 'Dividend history is unknown for ' + why.join(', ') + ', so performance is shown on a price-only basis for both the portfolio and ' + benchSym + '.');
-    }
+      mode = 'price';
+    } else if (mode === 'price' && wanted === 'price') warn('PRICE_CHOSEN', 'Price-only comparison selected: dividends are excluded from both the portfolio and ' + benchSym + '.');
+    const basis = mode === 'price' ? 'price' : 'total';
+    const modeLabel = mode === 'price' ? MODE_TEXT.price.portfolio : 'Portfolio: ' + MODE_TEXT[mode].portfolio + ' · ' + benchSym + ': ' + MODE_TEXT[mode].bench;
     const ctx = { series, pidx, autoDiv };
 
     // 3. simulate (account values always include dividends; performance uses the chosen basis)
     const full = simulate(txs, cal, ctx, true);
     if (full.errors.length) return { errors: full.errors };
     const perfSim = basis === 'total' ? full : simulate(txs, cal, ctx, false);
+
+    // dividends the market data says you were entitled to, after the last one you recorded for that security (for one-click recording)
+    const lastManual = new Map(); txs.forEach(x => { if (x.type === 'dividend' && (!lastManual.has(x.symbol) || x.date > lastManual.get(x.symbol))) lastManual.set(x.symbol, x.date); });
+    const suggestions = simulate(txs.filter(x => x.type !== 'dividend'), cal, { series, pidx, autoDiv: allDiv }, true).divEvents
+      .filter(e => !(lastManual.has(e.symbol) && lastManual.get(e.symbol) >= cal[e.idx]))
+      .map(e => ({ date: cal[e.idx], symbol: e.symbol, perShare: e.perShare, shares: e.shares, amount: e.amount }));
 
     // 4. validity of each day
     const i0 = txs[0].idx; let lastBad = -1;
@@ -211,8 +234,10 @@
     // 5. performance chain and benchmark levels
     const chain = twrChain(perfSim.V, perfSim.FLOW, s);
     if (chain.skipped) warn('ZERO_VALUE_DAYS', chain.skipped + ' day(s) followed a zero portfolio value and were skipped in the return chain');
-    const BL = F.levels(bench, basis);
-    const benchR = new Array(n).fill(null); for (let i = 1; i < n; i++) benchR[i] = BL[i] / BL[i - 1] - 1;
+    const BL = F.levels(bench, mode === 'reinvested' ? 'total' : 'price');        // 'cash' mode builds its own window-specific level below
+    const benchDiv = new Array(n).fill(0); if (mode === 'cash') F.dividendsByIndex(bench).forEach((amt, i) => { benchDiv[i] = amt; });
+    const benchCum = []; { let c = 0; for (let i = 0; i < n; i++) { c += benchDiv[i]; benchCum.push(c); } }
+    const benchLevel = a => (mode === 'cash' ? i => (bench.close[i] + benchCum[i] - benchCum[a]) / bench.close[a] : i => BL[i] / BL[a]);
     const cumFlow = []; let cf = 0; for (let i = 0; i < n; i++) { cf += full.FLOW[i]; cumFlow.push(cf); }
 
     // 6. metrics per period
@@ -230,8 +255,8 @@
       let netFlows = 0, wsum = 0;
       for (let i = a + 1; i <= b; i++) { const f = perfSim.FLOW[i]; netFlows += f; wsum += f * ((days - F.daysBetween(cal[a], cal[i])) / days); }
       const dietzDen = perfSim.V[a] + wsum;
-      const R = [], RB = [];
-      for (let i = a + 1; i <= b; i++) { R.push(chain.R[i]); RB.push(benchR[i]); }
+      const bl = benchLevel(a); const R = [], RB = [];
+      for (let i = a + 1; i <= b; i++) { R.push(chain.R[i]); RB.push(bl(i) / bl(i - 1) - 1); }
       const sd2 = R.length >= F.MIN_VOL_RETURNS ? F.sampleStd(R) : null;
       let beta = null, corr = null;
       if (R.length >= F.MIN_BETA_RETURNS) {
@@ -239,7 +264,7 @@
         beta = vb > 0 ? cab / vb : null; corr = sa > 0 && sb > 0 ? cab / (sa * sb) : null;
       }
       const idxs = []; for (let i = a; i <= b; i++) idxs.push(i);
-      const benchCum = BL[b] / BL[a] - 1;
+      const benchRet = bl(b) - 1;
       if (truncated) w.push('TRUNCATED');
       if (R.length < F.MIN_VOL_RETURNS) w.push('FEW_OBSERVATIONS');
       perf[period] = {
@@ -247,7 +272,7 @@
         valueStart: V0, valueEnd: V1, valueChange: V1 - V0, netFlows, investmentGain: V1 - V0 - netFlows,
         twr, annualizedTwr: days >= 365 ? Math.pow(1 + twr, 365.25 / days) - 1 : null,
         modifiedDietz: dietzDen > 0 ? (perfSim.V[b] - perfSim.V[a] - netFlows) / dietzDen : null,
-        benchmarkReturn: benchCum, excess: twr - benchCum,
+        benchmarkReturn: benchRet, excess: twr - benchRet,
         volatility: sd2 === null ? null : sd2 * Math.sqrt(F.TRADING_DAYS),
         benchmarkVolatility: RB.length >= F.MIN_VOL_RETURNS ? F.sampleStd(RB) * Math.sqrt(F.TRADING_DAYS) : null,
         beta, correlation: corr, maxDrawdown: F.maxDrawdown(chain.L, idxs, cal)
@@ -284,7 +309,8 @@
       byType: Object.keys(byType).map(k => ({ label: k, value: byType[k] })).concat(cash > CASH_TOL ? [{ label: 'Cash', value: cash }] : []) };
 
     return {
-      errors: [], asOf: lastDate, startDate: cal[s], inceptionDate: cal[i0], benchmark: benchSym, basis, basisLabel: LABELS[basis], warnings,
+      errors: [], asOf: lastDate, startDate: cal[s], inceptionDate: cal[i0], benchmark: benchSym, basis, mode, requestedMode: wanted, basisLabel: LABELS[mode] + ' · ' + modeLabel, modeLabel, warnings, ledger,
+      dividendSuggestions: suggestions,
       holdings,
       totals: { totalValue: total, marketValue: invested, cash, costBasis: cost, unrealized: unreal, unrealizedPct: cost > 0 ? unreal / cost : null,
         realized: full.realized, dividends: divTotal, fees: full.fees },
@@ -292,7 +318,7 @@
         largest: holdings.length ? holdings[0].symbol : null },
       allocation,
       daily: { dates: cal.slice(s), value: full.V.slice(s), cash: full.CASH.slice(s), netContributions: cumFlow.slice(s).map(x => x - cumFlow[s]),
-        twrLevel: chain.L.slice(s), benchLevel: BL.slice(s).map(v => v / BL[s]) },
+        twrLevel: chain.L.slice(s), benchLevel: BL.slice(s).map(v => v / BL[s]), benchClose: bench.close.slice(s), benchDivCum: benchCum.slice(s) },
       perf
     };
   }
@@ -302,12 +328,15 @@
     const p = result.perf[period]; if (!p || !p.startDate) return null;
     const d = result.daily; const a = d.dates.indexOf(p.startDate);
     const dates = d.dates.slice(a), t0 = d.twrLevel[a], b0 = d.benchLevel[a];
-    const twr = d.twrLevel.slice(a).map(v => v / t0 * 100), bench = d.benchLevel.slice(a).map(v => v / b0 * 100);
+    const twr = d.twrLevel.slice(a).map(v => v / t0 * 100);
+    const bench = result.mode === 'cash'
+      ? d.benchClose.slice(a).map((c, k) => (c + d.benchDivCum[a + k] - d.benchDivCum[a]) / d.benchClose[a] * 100)
+      : d.benchLevel.slice(a).map(v => v / b0 * 100);
     let peak = -Infinity;
     const dd = twr.map(v => { if (v > peak) peak = v; return (v / peak - 1) * 100; });
     return { dates, twr, bench, drawdown: dd, value: d.value.slice(a), netContributions: d.netContributions.slice(a).map(v => v - d.netContributions[a]) };
   }
 
-  const api = { PERIODS, LABELS, validate, analyze, chart, splitFactor };
+  const api = { PERIODS, MODES, LABELS, validate, analyze, chart, splitFactor };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Portfolio = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -94,10 +94,13 @@ def validate(p) -> list:
                 errs.append(f"{where}: price must be positive")
             if t.get("fee") is not None and (not _num(t["fee"]) or t["fee"] < 0):
                 errs.append(f"{where}: fee must be zero or positive")
-            if "external" in t and not isinstance(t["external"], bool):
-                errs.append(f"{where}: external must be true or false")
+            for flag in ("external", "reinvest"):
+                if flag in t and not isinstance(t[flag], bool):
+                    errs.append(f"{where}: {flag} must be true or false")
         elif not _num(t.get("amount")) or t["amount"] <= 0:
             errs.append(f"{where}: amount must be positive")
+        if "group" in t and (not isinstance(t["group"], str) or not ID_RE.match(t["group"])):
+            errs.append(f"{where}: group must use letters, digits, dot, dash or underscore")
         if "note" in t and (not isinstance(t["note"], str) or len(t["note"]) > 200):
             errs.append(f"{where}: note must be text of at most 200 characters")
     return errs

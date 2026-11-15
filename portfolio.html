@@ -37,6 +37,9 @@
     <h1>Your portfolio, measured properly</h1>
     <p class="lead">Holdings, cost basis and unrealized gains, allocation, and performance against SPY. Time-weighted return is kept separate from the change in account value, so deposits and withdrawals are never mistaken for gains.</p>
     <div class="banner" id="dataBanner" role="status" hidden></div>
+    <div class="ex-controls" id="viewBar" hidden><label for="viewSel"><b>View</b></label>
+      <select id="viewSel" class="input" aria-describedby="viewHelp"><option value="real">My real portfolio</option><option value="mask">Hide dollar amounts and share counts</option><option value="sample">Show the simulated sample instead</option></select>
+      <span class="cap" id="viewHelp">For screenshots and demos. Nothing is stored; reloading returns to the view in the address bar.</span></div>
     <div class="banner private" id="privateBanner" role="note" hidden><span></span></div>
     <div class="banner synth" id="synthBanner" role="note" hidden><span><b>Simulated demonstration.</b> This portfolio and every price in it are <b>made up</b> (a seeded model); they are not real holdings or real market prices. A private edition of this page runs only on the owner’s computer with real data and real holdings, which are never published.</span></div>
   </div>
@@ -52,6 +55,9 @@
   <section class="card" aria-labelledby="perfH">
     <div class="ex-head"><h2 id="perfH">Performance</h2>
       <div class="seg" id="periods" role="group" aria-label="Period"></div></div>
+    <div class="ex-controls"><label for="modeSel"><b>Compare with SPY using</b></label>
+      <select id="modeSel" class="input"><option value="auto">Automatic (follows your recorded reinvestments)</option><option value="cash">Dividends held as cash</option><option value="reinvested">Dividends reinvested</option><option value="price">Price return only</option></select></div>
+    <p class="cap" id="modeNote"></p>
     <div class="notes" id="notes"></div>
     <div class="pf-split">
       <div>
@@ -83,18 +89,19 @@
     <h2 id="txH">Transactions</h2>
     <p class="cap" id="txCap"></p>
     <form id="txForm" class="pf-form" autocomplete="off" hidden>
-      <label>Type<select id="fType"><option value="buy">Buy</option><option value="sell">Sell</option><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="dividend">Dividend (manual)</option><option value="fee">Fee</option></select></label>
+      <label>Type<select id="fType"><option value="buy">Buy</option><option value="sell">Sell</option><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="dividend">Dividend (manual)</option><option value="drip">Dividend + reinvestment</option><option value="fee">Fee</option></select></label>
       <label>Date<input id="fDate" type="date" required></label>
-      <label data-for="buy sell dividend">Symbol<input id="fSymbol" type="text" maxlength="10" spellcheck="false" placeholder="VTI"></label>
-      <label data-for="buy sell">Shares<input id="fShares" type="number" step="any" min="0" inputmode="decimal"></label>
-      <label data-for="buy sell">Price per share<input id="fPrice" type="number" step="any" min="0" inputmode="decimal"></label>
+      <label data-for="buy sell dividend drip">Symbol<input id="fSymbol" type="text" maxlength="10" spellcheck="false" placeholder="VTI"></label>
+      <label data-for="buy sell drip">Shares bought<input id="fShares" type="number" step="any" min="0" inputmode="decimal"></label>
+      <label data-for="buy sell drip">Price per share<input id="fPrice" type="number" step="any" min="0" inputmode="decimal"></label>
       <label data-for="buy sell">Fee<input id="fFee" type="number" step="any" min="0" inputmode="decimal" value="0"></label>
-      <label data-for="deposit withdrawal dividend fee">Amount<input id="fAmount" type="number" step="any" min="0" inputmode="decimal"></label>
+      <label data-for="deposit withdrawal dividend fee drip">Amount<input id="fAmount" type="number" step="any" min="0" inputmode="decimal"></label>
       <label class="check" data-for="buy sell"><input id="fExternal" type="checkbox"> Funded from outside the portfolio <small>(an existing position: its cost counts as a deposit on that date)</small></label>
       <button class="btn primary" type="submit">Add</button>
     </form>
     <div class="banner warn" id="txMsg" role="alert" hidden></div>
-    <div class="table-wrap"><table class="t" id="txTable"><thead><tr><th>Date</th><th>Type</th><th>Symbol</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Amount</th><th></th></tr></thead><tbody id="txBody"></tbody></table></div>
+    <div class="ex-controls" id="divBar" hidden><button class="btn small" type="button" id="divBtn"></button><span class="cap" id="divCap"></span></div>
+    <div class="table-wrap"><table class="t" id="txTable"><thead><tr><th>Date entered</th><th>Applied on</th><th>Type</th><th>Symbol</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Amount</th><th></th></tr></thead><tbody id="txBody"></tbody></table></div>
   </section>
 
   <details class="box ex-method" id="method">
@@ -102,6 +109,14 @@
     <h3>Time-weighted return (the number to compare with SPY)</h3>
     <p>The portfolio is valued at every close. Each day’s return strips out that day’s deposits and withdrawals, then the daily returns are chained. Flows are assumed to happen at the close, at the price you traded. This measures how the <b>investments</b> performed, regardless of when money moved.</p>
     <div class="formula">r<sub>t</sub> = (Value<sub>t</sub> − Flow<sub>t</sub>) ÷ Value<sub>t−1</sub> − 1</div>
+    <h3>Existing holdings and outside funding</h3>
+    <p>Enter an existing position as a <b>buy</b> with its real purchase date and price and tick <b>funded from outside</b>. Its cost (plus fee) is then treated as a deposit on that date, so it is not mistaken for performance: the time-weighted return is unaffected by it, the dollar “net contributions” include it, and Modified Dietz weights it by how long it has been invested. A buy that is <b>not</b> marked outside is paid from cash in the ledger (record a deposit first) and warns if cash would go negative. Sales work the same way in reverse. History before your earliest transaction is simply not measured.</p>
+    <h3>Dividends and reinvestment</h3>
+    <p>Dividends are credited to cash on the ex-date, for the shares held at the previous close, unless you record your own <b>dividend</b> transactions (then the automatic ones for that security are switched off). To model reinvestment, record the dividend and a <b>buy</b> with <b>reinvested</b> ticked: use “Dividend + reinvestment”. Nothing is reinvested automatically. The SPY comparison is labelled on every number and you can choose how SPY treats its own dividends: held as cash (matches a portfolio that keeps them), reinvested on the ex-date (matches one that reinvests), or price only. “Automatic” follows what you recorded.</p>
+    <h3>Dates: actual versus applied</h3>
+    <p>Each transaction keeps the date you entered, even a weekend or holiday. Calculations apply it at the close of the <b>first trading day on or after</b> that date; the “Applied on” column shows it. The calendar does not distinguish holidays from weekends, so a holiday is simply the next date with a price.</p>
+    <h3>Timing is an approximation</h3>
+    <p>Deposits, withdrawals and trades are assumed to happen at the end of the day at your traded price. Real orders fill at intraday times and dividends are paid days after the ex-date, so very short-period returns around large flows are approximate. The approximation does not accumulate: it only affects the day of each flow.</p>
     <h3>Change in account value is not a return</h3>
     <p>Depositing $1,000 raises the balance by $1,000 and earns nothing. The page therefore shows value change, net contributions and investment gain (value change minus contributions, in dollars) next to the percentage returns.</p>
     <h3>Modified Dietz</h3>
