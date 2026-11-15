@@ -114,3 +114,65 @@ Actions that need the owner (each is a separate approval):
 4. **Spot-check a few Apple and Microsoft figures on the printed filings** (the Microsoft, Walmart and JPMorgan statements were read from the filing's rendered statement pages, not the printed text).
 5. **Merge approval and timing** (merge commit, not squash; bring `main`'s daily data commits into the branch first; not while a scheduled run is in progress; not in the last days before the due date). Merging runs `pages.yml` and deploys.
 6. After deployment: section 5 checks against the live URL, including a real iPhone check (`docs/browser-compatibility.md`).
+
+## 10. Deployment runbook (prepared 2026-11-15; nothing here has been run)
+
+### 10.1 Blocker found while preparing it: `pages.yml` does not stage the new pages
+
+`.github/workflows/pages.yml` copies only `index.html browse.html trends.html manifest.webmanifest sw.js`, `assets/` and the two data files into the site. A plain
+merge would therefore deploy the new CSS/JS and navigation (which links to five pages) **but not** `explorer.html`, `fundamentals.html`, `compare.html`,
+`portfolio.html`, `platform.html`, `explorer/` (sample data and the Apple and Microsoft files), `LICENSE`, `NOTICE` or `THIRD_PARTY_NOTICES.md`. The navigation links would 404.
+Offline behaviour of the three required pages would still work (the service worker tolerates missing files), so this does not break the assignment, but it would break the launch.
+
+Proposed change (needs your explicit approval, because it edits a workflow; it touches only the staging step, not `daily.yml` or the pipeline):
+
+```yaml
+      - name: Stage the site (pages, assets, research data and the two assignment data files; raw files are not published)
+        run: |
+          mkdir -p _site/data
+          cp index.html browse.html trends.html explorer.html fundamentals.html compare.html portfolio.html platform.html manifest.webmanifest sw.js _site/
+          cp LICENSE NOTICE THIRD_PARTY_NOTICES.md _site/
+          cp -R assets _site/assets
+          cp -R explorer _site/explorer
+          cp data/history.csv data/status.json _site/data/
+          touch _site/.nojekyll
+```
+
+Checked on 2026-11-15 by staging exactly this into a scratch folder: every local link and every service-worker shell entry resolves (0 missing); the staged site is 1.9 MB.
+`daily.yml` calls `pages.yml`, so this step also runs after every daily data commit; a staging typo would block daily deploys (the data commit itself would still succeed).
+Mitigation: make this change in its own commit on the branch, push, and confirm `tests.yml` is green; the merge then carries it. After the merge, check the first `pages.yml` run and the live URLs (10.4).
+
+### 10.2 Order of operations (each step needs your go-ahead; stop on any failure)
+
+1. Choose the merge window (recommendation in 10.5) and tell me.
+2. On the branch: `git fetch && git merge origin/main` (brings the daily data commits; expect no conflicts); rerun the full suite and the three-engine browser audits.
+3. Commit the `pages.yml` staging change (10.1) on the branch; push; confirm `tests.yml` is green; run `git diff origin/main -- creditscope .github/workflows/daily.yml` and expect it empty.
+4. Confirm no scheduled run is in progress or due within 30 minutes (`gh run list --workflow daily.yml --limit 3`; the cron nominally fires at 21:45 UTC but has started 3.5 hours late).
+5. Merge with a merge commit (`gh pr merge --merge`), never squash. `pages.yml` starts on the push to `main`.
+6. Watch it: `gh run watch` on the Deploy site run. If it fails, revert (section 7) immediately.
+7. Post-deploy verification (section 5 and 10.4).
+8. Create the four-line submission file with your student ID and submit.
+
+### 10.3 Rollback
+
+`git revert -m 1 <merge commit>` on `main` redeploys the previous site (pages from before the merge); `data/` is never touched by the merge. If only the staging step is faulty, revert that one commit.
+If the service worker misbehaves, bump `VERSION` in `sw.js`.
+
+### 10.4 Live checks after deploy
+
+`curl -I` returns 200 for `/`, `browse.html`, `trends.html`, `explorer.html`, `fundamentals.html`, `compare.html`, `portfolio.html`, `platform.html`, `LICENSE`, `NOTICE`, `explorer/sec/index.json`,
+`explorer/sec/company/AAPL.json`, `explorer/sec/company/MSFT.json`, `manifest.webmanifest`, `sw.js`, `data/history.csv`, `data/status.json`. Then the regression and required-page audits against the live URL,
+an old-service-worker upgrade check (v2 to v9), an installed-app offline check, the next scheduled run (Issue opened, previous closed, site updated), and a real iPhone check.
+
+### 10.5 Recommended timing
+
+Merge after the seventh collection date exists (earliest 2026-11-20, nominally 2026-11-20 UTC) and at least a week before 2026-12-03: for example 2026-11-22 to 2026-11-25. The merge cannot change `data/` or the pipeline,
+but it is the riskiest moment for the graded site, so it should happen when the assignment minimum is already met and there is time to repair. Do not merge in the last 72 hours.
+
+### 10.6 Assignment compliance until the due date
+
+- Distinct successful UTC run dates counted from `data/status.json` / `data/raw/`: 2 now (2026-11-14, 2026-11-15). A run counts on the UTC date it starts. The nominal 21:45 UTC schedule has been starting after midnight UTC (the first scheduled run started 01:19 UTC), which still yields one new date per day.
+- Seven dates are reached on about 2026-11-20 if every daily run succeeds, with 13 days of slack before 2026-12-03.
+- A successful run is needed within 48 hours of the due date: any success from 2026-12-01 (if the due time is the end of 2026-12-03 UTC, sooner than that is also fine). Daily runs on 12-01, 12-02 and 12-03 give three chances.
+- Checkpoints: 2026-11-20 (seven dates), 2026-12-01 (a recent success), 2026-12-02 evening (final success; `gh workflow run daily.yml` as a manual fallback, which counts as a run if it finishes and commits).
+- This cannot be guaranteed from here: it depends on GitHub's scheduler, Nasdaq's service and the runner. The mitigations are the daily Issue, the manual fallback and the checkpoints above.
