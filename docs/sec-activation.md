@@ -17,7 +17,7 @@ contacts the SEC or publishes data is marked **[needs your OK]**.
 | Page | `fundamentals.html` | shows the simulated companies today; shows real ones once `explorer/sec/` has files |
 
 The first run is `MSFT, AAPL, WMT, JPM`. Their quirks are covered in `docs/sec-edgar-plan.md`: Microsoft's year ends in June, Apple's
-ends on a Saturday near 30 September (52 or 53 weeks), Walmart's ends 31 January and is named for the year before, and JPMorgan is a
+ends on a Saturday near 30 September (52 or 53 weeks), Walmart's ends 31 January and is named for the year in which it ends (the year ended 31 January 2026 is Walmart's "fiscal 2026"; an earlier version of this note said the opposite, which was wrong), and JPMorgan is a
 bank, so gross profit and operating income are legitimately blank and revenue is "net revenue".
 
 ## Step 1: create a dedicated contact mailbox (you)
@@ -75,7 +75,7 @@ export SEC_USER_AGENT
 python3 -m fundamentals preflight
 # 3. fetch MSFT, AAPL, WMT, JPM into a folder OUTSIDE the repository
 OUT=~/creditscope-sec-review; mkdir -p "$OUT"
-python3 -m fundamentals build --tickers MSFT,AAPL,WMT,JPM --out "$OUT"
+python3 -m fundamentals build --tickers MSFT,AAPL,WMT,JPM --out "$OUT" --raw-dir "$OUT-raw"
 # 4. cross-check each company through a second SEC endpoint and write a manual checklist
 for t in MSFT AAPL WMT JPM; do python3 -m fundamentals verify $t --out "$OUT" --sheet "$OUT/$t.md"; done
 # 5. offline review report: coverage, tags used, warnings, missing fields, margins
@@ -106,3 +106,16 @@ They go live with the normal merge, using `docs/launch-checklist.md`.
   contain the contact; wait ten minutes and try once more.
 - A company is skipped: it is not in the SEC ticker list or reports no annual US-GAAP facts. It is named in the build summary.
 - To undo: delete `explorer/sec/company/*.json` and restore the empty `index.json`; nothing else depends on them.
+
+## Re-running after a rule change, and explaining a figure (no new SEC request)
+
+`build --raw-dir DIR` saves each SEC response outside the repository. Afterwards:
+
+```bash
+python3 -m fundamentals build --tickers MSFT,AAPL,WMT,JPM --out "$OUT" --raw-dir "$OUT-raw" --offline   # rebuild with the current rules
+python3 -m fundamentals explain MSFT operatingCashFlow --raw-dir "$OUT-raw" --year 2015                  # every SEC fact behind a figure
+```
+
+## Review log
+
+See `docs/sec-first-review.md` for what the first real build showed and what changed because of it.

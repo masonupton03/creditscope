@@ -38,3 +38,6 @@ MAX_YEARS = 12
 IDENTITY_TOLERANCE = 0.02        # assets vs liabilities + equity (minority interest and redeemable equity can explain a gap)
 GROSS_PROFIT_TOLERANCE = 0.01
 JUMP_LIMIT = 0.8                 # a year-over-year revenue change larger than this is worth a second look
+
+STALE_YEARS = 2                  # a series whose newest value is older than this many years behind the company is flagged
+TAG_SWITCH_JUMP = 0.4            # a change this large at the year a tag changes is flagged (the definition may differ)

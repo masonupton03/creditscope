@@ -17,7 +17,7 @@ from datetime import date, datetime, timezone
 from . import concepts as C
 
 
-REDUCER_VERSION = 2          # bump when the reduction rules change: published files record which rules produced them
+REDUCER_VERSION = 3          # bump when the reduction rules change: published files record which rules produced them
 
 
 def source_digest(company: dict) -> str:
@@ -114,7 +114,11 @@ def quality_checks(metrics: dict) -> list:
         v = lambda k: by.get(k, {}).get(fy, {}).get("val")
         a, l, e = v("assets"), v("liabilities"), v("equity")
         if a and l is not None and e is not None and abs(a - (l + e)) / abs(a) > C.IDENTITY_TOLERANCE:
-            add("BALANCE_IDENTITY", fy, f"FY{fy}: total assets differ from liabilities plus equity by {abs(a - (l + e)) / abs(a):.1%} (minority interest or redeemable equity can explain this).")
+            filed = {k: by[k][fy].get("filed") for k in ("assets", "liabilities", "equity")}
+            mixed = len(set(filed.values())) > 1
+            why = ("the three figures come from different filings (" + ", ".join(f"{k} filed {d}" for k, d in filed.items()) + "), so a later restatement of only some of them is the likely cause" if mixed
+                   else "minority interest or redeemable equity can explain this")
+            add("BALANCE_IDENTITY", fy, f"FY{fy}: total assets differ from liabilities plus equity by {abs(a - (l + e)) / abs(a):.1%}; {why}.")
         rev, cost, gp = v("revenue"), v("costOfRevenue"), v("grossProfit")
         if rev and cost is not None and gp is not None and abs((rev - cost) - gp) / abs(rev) > C.GROSS_PROFIT_TOLERANCE:
             add("GROSS_PROFIT_MISMATCH", fy, f"FY{fy}: reported gross profit differs from revenue minus cost of revenue by {abs((rev - cost) - gp) / abs(rev):.1%} of revenue.")
@@ -127,6 +131,18 @@ def quality_checks(metrics: dict) -> list:
             pt = p.get(fy)
             if pt and pt.get("filed") and pt["filed"] < pt["end"]:
                 add("FILED_BEFORE_PERIOD_END", fy, f"FY{fy} {k}: filing date {pt['filed']} is before the period end {pt['end']}.")
+    last_fy = max((p["fy"] for m in metrics.values() for p in m["points"]), default=None)
+    for k, m in metrics.items():
+        pts = m["points"]
+        if last_fy and pts[-1]["fy"] < last_fy - C.STALE_YEARS:
+            add("STALE_SERIES", pts[-1]["fy"], f"{m['label']}: the newest value is FY{pts[-1]['fy']} but the company reports through FY{last_fy}; the filer stopped using tag {pts[-1]['tag']}, so nothing current is shown for it.")
+        years = [p["fy"] for p in pts if not last_fy or p["fy"] >= last_fy - C.MAX_YEARS + 1]
+        gaps = [y for y in range(years[0], years[-1] + 1) if y not in years] if years else []
+        if gaps and pts[-1]["fy"] >= (last_fy or 0) - C.STALE_YEARS:
+            add("GAP_IN_SERIES", gaps[0], f"{m['label']}: no value for " + ", ".join(f"FY{y}" for y in gaps) + " although later and earlier years exist (not reported under the tags this site reads).")
+        for a, b in zip(pts, pts[1:]):
+            if b["tag"] != a["tag"] and a["val"] and b["fy"] == a["fy"] + 1 and abs(b["val"] / a["val"] - 1) > C.TAG_SWITCH_JUMP and m["unit"] == "USD":
+                add("TAG_SWITCH_JUMP", b["fy"], f"{m['label']}: FY{b['fy']} switches from {a['tag']} to {b['tag']} and changes by {b['val'] / a['val'] - 1:+.0%}; the definition may have changed, so compare the two years with care.")
     return out
 
 

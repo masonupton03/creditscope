@@ -428,3 +428,46 @@ def test_review_reports_coverage_checks_and_tags_offline_for_built_files(capsys)
     out = capsys.readouterr().out
     assert "== DEMA" in out and "GROSS_PROFIT_MISMATCH" in out and "via Revenues" in out and "net margin" in out
     assert cli.main(["review", "--out", str(ROOT / "docs")]) == 2
+
+
+def _pts(tag, vals, start=2018, filed="2024-02-01", end_md="12-31"):
+    return {"label": tag, "unit": "USD", "kind": "instant", "points": [{"fy": start + i, "end": f"{start + i}-{end_md}", "val": v, "filed": filed, "accn": f"a{i}", "form": "10-K", "tag": tag} for i, v in enumerate(vals)]}
+
+
+def test_stale_series_gaps_tag_switches_and_mixed_filings_are_flagged_without_changing_values():
+    from fundamentals import reduce as R
+    metrics = {"revenue": _pts("Revenues", [1e9] * 8), "debt": _pts("LongTermDebt", [5e9] * 3),                   # stops FY2020; company reports to FY2025
+               "operatingCashFlow": _pts("OCF", [1, 2, 3, 4, 5, 6, 7, 8]), "cash": _pts("CashA", [100, 100, 100, 300, 300, 300, 300, 300])}
+    del metrics["operatingCashFlow"]["points"][3:5]                                                                # FY2021 and FY2022 missing
+    metrics["cash"]["points"][3]["tag"] = "CashB"
+    codes = {c["code"]: c for c in R.quality_checks(metrics)}
+    assert "STALE_SERIES" in codes and "FY2020" in codes["STALE_SERIES"]["message"] and "LongTermDebt" in codes["STALE_SERIES"]["message"]
+    assert "GAP_IN_SERIES" in codes and "FY2021" in codes["GAP_IN_SERIES"]["message"] and "FY2022" in codes["GAP_IN_SERIES"]["message"]
+    assert "TAG_SWITCH_JUMP" in codes and "CashA to CashB" in codes["TAG_SWITCH_JUMP"]["message"] and "+200%" in codes["TAG_SWITCH_JUMP"]["message"]
+    assert metrics["debt"]["points"][-1]["val"] == 5e9                                                              # flagged, never altered
+    bal = {"assets": _pts("Assets", [100]), "liabilities": _pts("Liabilities", [60]), "equity": _pts("StockholdersEquity", [50])}
+    bal["equity"]["points"][0]["filed"] = "2025-03-01"
+    msg = [c for c in R.quality_checks(bal) if c["code"] == "BALANCE_IDENTITY"][0]["message"]
+    assert "different filings" in msg and "equity filed 2025-03-01" in msg
+    bal["equity"]["points"][0]["filed"] = "2024-02-01"
+    assert "minority interest" in [c for c in R.quality_checks(bal) if c["code"] == "BALANCE_IDENTITY"][0]["message"]
+
+
+def test_raw_responses_are_saved_outside_the_output_and_rebuild_offline_identically(mock, tmp_path):
+    raw, out1, out2 = tmp_path / "raw", tmp_path / "o1", tmp_path / "o2"
+    cli.build(mock.client(sleep=lambda s: None), ["AAA"], out1, log=lambda m: None, raw_dir=raw)
+    assert (raw / "facts-AAA.json").exists() and (raw / "directory.json").exists() and not (out1 / "facts-AAA.json").exists()
+    seen = len(mock.seen)
+    cli.build(None, ["AAA"], out2, log=lambda m: None, raw_dir=raw, offline=True)
+    assert len(mock.seen) == seen                                                                                    # no request on the offline rebuild
+    a, b = json.loads((out1 / "company" / "AAA.json").read_text()), json.loads((out2 / "company" / "AAA.json").read_text())
+    a.pop("generated"); b.pop("generated")
+    assert a == b
+
+
+def test_explain_lists_candidate_facts_from_the_saved_response(mock, tmp_path, capsys):
+    raw = tmp_path / "raw"
+    cli.build(mock.client(sleep=lambda s: None), ["AAA"], tmp_path / "o", log=lambda m: None, raw_dir=raw)
+    assert cli.main(["explain", "AAA", "revenue", "--raw-dir", str(raw)]) == 0
+    assert "fact(s)" in capsys.readouterr().out
+    assert cli.main(["explain", "AAA", "nonsense", "--raw-dir", str(raw)]) == 2
