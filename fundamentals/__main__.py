@@ -137,7 +137,15 @@ def run_review(args) -> int:
         c = json.loads(f.read_text())
         print(f"== {c['ticker']}  {c['name']}  (CIK {c['cik']})  latest fiscal period ends {c['latestPeriodEnd']}, filed {c['latestFiled']}  [{f.stat().st_size // 1024} KB]")
         cov = c.get("coverage", {})
-        print("  missing: " + (", ".join(cov.get("missing", [])) or "nothing"))
+        print(f"  profile: {c.get('profile', 'general')}" + (f" ({c['profileReason']})" if c.get("profileReason") else ""))
+        print("  not reported: " + (", ".join(cov.get("missing", [])) or "nothing"))
+        for k, d in cov.get("stale", {}).items():
+            print(f"  NOT SHOWN (stale): {d['label']} last reported FY{d['lastFy']} ({d['val']:,.0f}, tag {d['tag']}, filed {d['filed']}); company reports through FY{d['companyLatestFy']}")
+        for k, runs in cov.get("definitions", {}).items():
+            print(f"  DEFINITION CHANGES in {k}: " + "; ".join(f"FY{r['fromFy']}-FY{r['toFy']} {r['meaning']}" for r in runs))
+        bs = {k: {p["fy"]: p["accn"] for p in c["metrics"][k]["points"]} for k in ("assets", "liabilities", "equity") if k in c["metrics"]}
+        mixed = [fy for fy in (bs.get("assets") or {}) if len({bs[k].get(fy) for k in bs if fy in bs[k]}) > 1]
+        print("  balance sheet: each year from one filing" if not mixed else f"  balance sheet: MIXED FILINGS in FY{mixed}")
         for k, v in cov.get("found", {}).items():
             pts = c["metrics"][k]["points"]
             print(f"  {k:<18} {v['years']:>2} yrs  FY{pts[0]['fy']}-FY{pts[-1]['fy']}  latest {pts[-1]['val']:,.2f} {c['metrics'][k]['unit']}  via {', '.join(v['tags'])}")

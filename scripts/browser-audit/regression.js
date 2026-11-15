@@ -114,6 +114,28 @@ const PAGES = ['index.html', 'browse.html', 'trends.html', 'explorer.html#AAPL',
     ok('charts paint: every canvas on explorer has drawn pixels', painted2.length >= 1 && painted2.every(Boolean), painted2.join(','));
     await d.close();
   }
+  // ---- a bank, a series that stopped being reported, and a cash definition change (faked from a simulated company; real files carry the same fields)
+  {
+    const p = await newPage();
+    const demo = JSON.parse(fs.readFileSync(require.resolve('./../../explorer/sec-sample/company/DEMA.json'), 'utf8'));
+    const bank = JSON.parse(JSON.stringify(demo)); bank.ticker = 'DEMA'; bank.name = 'Demo Bank Corp';
+    ['costOfRevenue', 'grossProfit', 'operatingIncome', 'capex'].forEach(k => delete bank.metrics[k]);
+    const dm = bank.metrics.debt; delete bank.metrics.debt;
+    bank.profile = 'bank'; bank.profileReason = 'reports Deposits and has no cost of revenue or operating income';
+    const pts = bank.metrics.cash.points; const n = pts.length;
+    pts.forEach((q, i) => { q.tag = i < n - 3 ? 'CashAndDueFromBanks' : 'CashAndCashEquivalentsAtCarryingValue'; });
+    bank.coverage.definitions = { cash: [{ meaning: 'cash and due from banks (a narrower item that banks report)', tag: 'CashAndDueFromBanks', fromFy: pts[0].fy, toFy: pts[n - 4].fy }, { meaning: 'cash and cash equivalents', tag: 'CashAndCashEquivalentsAtCarryingValue', fromFy: pts[n - 3].fy, toFy: pts[n - 1].fy }] };
+    bank.coverage.stale = { debt: { label: 'Debt', lastFy: 2013, tag: 'LongTermDebt', val: 267889e6, unit: 'USD', filed: '2014-02-28', accn: '0000000000-14-000001', companyLatestFy: pts[n - 1].fy } };
+    await p.route('**/explorer/sec-sample/company/DEMA.json', r => r.fulfill({ json: bank }));
+    await p.goto(BASE + 'fundamentals.html#DEMA', { waitUntil: 'networkidle' }); await p.waitForSelector('.fd-table');
+    const t = await p.textContent('#detail');
+    ok('bank: analysed-as-a-bank notice and net-revenue wording', /Analysed as a bank/.test(t) && /Net revenue/.test(t));
+    ok('bank: gross profit, operating margin, free cash flow, debt and net debt are not shown', !/Gross profit/.test(await p.textContent('.fd-table')) && !/Free cash flow|Operating margin|Net debt|Debt to equity/.test(await p.textContent('.fd-table')) && /Not shown for a bank/.test(t));
+    ok('stale series: a warning says the debt figure is not shown and it is absent from the figures', /Debt is not shown/.test(t) && !/>Debt</.test(await p.innerHTML('.fd-table')) && /last reported for FY2013/.test(await p.textContent('#audit')));
+    ok('cash definition change: dagger in the table, footnote names every definition', (await p.locator('.fd-table sup').count()) > 0 && /Cash is not one continuous series/.test(t) && /cash and due from banks/.test(t));
+    ok('bank page: no console errors', p.errs.length === 0, p.errs.join('|'));
+    await p.close();
+  }
   // ---- mobile overflow at several widths on every page
   for (const w of [320, 360, 390, 768]) {
     const p = await newPage(w);

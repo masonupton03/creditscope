@@ -55,14 +55,18 @@
     mk('chRev', { type: 'bar', data: { labels, datasets: [bar('Revenue', series('revenue'), '--s1'), bar('Net income', series('netIncome'), '--s3')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
     const pctTip = tip({ label: x => ' ' + x.dataset.label + ': ' + (x.parsed.y == null ? 'not available' : CS.dec(x.parsed.y, 1) + '%') });
     const r = (k) => ys.map(y => (a.ratios[y][k] == null ? null : a.ratios[y][k] * 100));
-    mk('chMargin', { type: 'line', data: { labels, datasets: [line('Gross margin', r('grossMargin'), '--s1'), line('Operating margin', r('operatingMargin'), '--s2'), line('Net margin', r('netMargin'), '--s3'), line('Free-cash-flow margin', r('fcfMargin'), '--s4')] }, options: Object.assign(common(), { scales: scales('% of revenue'), plugins: { legend, tooltip: pctTip } }) });
-    mk('chBal', { type: 'bar', data: { labels, datasets: [bar('Total assets', series('assets'), '--s1'), bar('Total liabilities', series('liabilities'), '--s2'), bar('Debt', series('debt'), '--s4'), bar('Cash', series('cash'), '--s3')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
-    mk('chCash', { type: 'bar', data: { labels, datasets: [bar('Operating cash flow', series('operatingCashFlow'), '--s3'), bar('Capital expenditure', series('capex'), '--s2'), bar('Free cash flow', series(null, y => a.ratios[y].fcf), '--s1')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
+    mk('chMargin', { type: 'line', data: { labels, datasets: c.profile === 'bank' ? [line('Net margin', r('netMargin'), '--s3'), line('Return on equity', r('roe'), '--s1')] : [line('Gross margin', r('grossMargin'), '--s1'), line('Operating margin', r('operatingMargin'), '--s2'), line('Net margin', r('netMargin'), '--s3'), line('Free-cash-flow margin', r('fcfMargin'), '--s4')] }, options: Object.assign(common(), { scales: scales('% of revenue'), plugins: { legend, tooltip: pctTip } }) });
+    mk('chBal', { type: 'bar', data: { labels, datasets: [bar('Total assets', series('assets'), '--s1'), bar('Total liabilities', series('liabilities'), '--s2')].concat(c.profile === 'bank' ? [] : [bar('Debt', series('debt'), '--s4')]).concat(c.coverage && c.coverage.definitions && c.coverage.definitions.cash ? [] : [bar('Cash', series('cash'), '--s3')]) }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
+    mk('chCash', { type: 'bar', data: { labels, datasets: c.profile === 'bank' ? [bar('Operating cash flow', series('operatingCashFlow'), '--s3')] : [bar('Operating cash flow', series('operatingCashFlow'), '--s3'), bar('Capital expenditure', series('capex'), '--s2'), bar('Free cash flow', series(null, y => a.ratios[y].fcf), '--s1')] }, options: Object.assign(common(), { scales: scales('USD ' + sc.name), plugins: { legend, tooltip: usdTip } }) });
   }
 
   /* ---------- table ---------- */
   function table(c, a, sc) {
     const ys = a.years.slice(-10);
+    const bank = c.profile === 'bank';
+    const cashRuns = (c.coverage && c.coverage.definitions && c.coverage.definitions.cash) || null;
+    const runIdx = y => cashRuns ? cashRuns.findIndex(r => y >= r.fromFy && y <= r.toFy) : -1;
+    const dagger = (k, y) => (k === 'cash' && cashRuns && runIdx(y) !== cashRuns.length - 1 && runIdx(y) >= 0) ? '<sup title="Different definition from the latest year: see the note under the table">†</sup>' : '';
     const oc = i => (i < ys.length - 6 ? ' old' : '');
     const head = '<tr><th class="sticky" scope="col">USD ' + sc.name + ' unless noted</th>' + ys.map((y, i) => {
       const p = ['revenue', 'netIncome', 'assets'].map(k => a.values[k] && a.values[k][y]).find(Boolean);
@@ -72,11 +76,11 @@
     const cell = (k, y, fmt) => {
       const i = ys.indexOf(y);
       const p = a.values[k] && a.values[k][y];
-      if (!p) return '<td class="r na' + oc(i) + '">—</td>';
+      if (!p) return '<td class="r na' + oc(i) + '" title="Not reported by the company under the tags read">—</td>';
       const txt = fmt(p.val);
       const tipText = p.form + ' filed ' + p.filed + ' · ' + p.tag + (p.start ? ' · period ' + p.start + ' to ' + p.end : ' · at ' + p.end);
       return '<td class="r' + oc(i) + '">' + (synthetic ? '<span title="Simulated filing reference ' + E(p.accn) + '">' + txt + '</span>'
-        : '<a href="' + FundCalc.filingUrl(c.cik, p.accn) + '" target="_blank" rel="noopener" title="' + E(tipText) + '">' + txt + '</a>') + '</td>';
+        : '<a href="' + FundCalc.filingUrl(c.cik, p.accn) + '" target="_blank" rel="noopener" title="' + E(tipText) + '">' + txt + '</a>') + dagger(k, y) + '</td>';
     };
     const calc = (k, y, fmt, note) => { const v = a.ratios[y][k]; return '<td class="r' + (v == null ? ' na' : '') + oc(ys.indexOf(y)) + '"' + (note && a.ratios[y][note] ? ' title="Derived: revenue minus cost of revenue"' : '') + '>' + (v == null ? '—' : fmt(v)) + (note && a.ratios[y][note] && v != null ? '*' : '') + '</td>'; };
     const m = v => usd(v, sc), eps = v => sign(v) + '$' + CS.num(Math.abs(v), 2);
@@ -84,16 +88,29 @@
     const grp = t => rows.push('<tr class="grp"><td class="sticky" colspan="' + (ys.length + 1) + '">' + t + '</td></tr>');
     const rep = (label, k, fmt) => { if (a.values[k]) rows.push('<tr><td class="sticky">' + label + '</td>' + ys.map(y => cell(k, y, fmt || m)).join('') + '</tr>'); };
     const der = (label, k, fmt, note) => rows.push('<tr><td class="sticky">' + label + '</td>' + ys.map(y => calc(k, y, fmt, note)).join('') + '</tr>');
-    grp('Income statement'); rep('Revenue', 'revenue'); rep('Cost of revenue', 'costOfRevenue');
-    rows.push('<tr><td class="sticky">Gross profit</td>' + ys.map(y => (a.values.grossProfit && a.values.grossProfit[y]) ? cell('grossProfit', y, m) : calc('grossProfit', y, m, 'grossProfitDerived')).join('') + '</tr>');
-    rep('Operating income', 'operatingIncome'); rep('Net income', 'netIncome'); rep('Diluted EPS (USD per share)', 'epsDiluted', eps);
-    grp('Balance sheet'); rep('Total assets', 'assets'); rep('Total liabilities', 'liabilities'); rep("Shareholders' equity", 'equity'); rep('Cash and equivalents', 'cash'); rep('Debt', 'debt');
-    grp('Cash flow'); rep('Operating cash flow', 'operatingCashFlow'); rep('Capital expenditure', 'capex'); der('Free cash flow (derived)', 'fcf', m);
-    grp('Growth and profitability (derived)'); der('Revenue growth', 'revenueGrowth', v => pct(v)); der('Gross margin', 'grossMargin', v => plain(v)); der('Operating margin', 'operatingMargin', v => plain(v)); der('Net margin', 'netMargin', v => plain(v));
-    der('FCF margin', 'fcfMargin', v => plain(v)); der('Return on equity', 'roe', v => plain(v)); der('Return on assets', 'roa', v => plain(v));
-    grp('Leverage (derived)'); der('Debt to equity', 'debtToEquity', v => CS.num(v, 2) + '×'); der('Net debt (debt − cash)', 'netDebt', m); der('Liabilities to assets', 'liabilitiesToAssets', v => plain(v));
+    grp('Income statement'); rep(bank ? 'Net revenue' : 'Revenue', 'revenue');
+    if (!bank) {
+      rep('Cost of revenue', 'costOfRevenue');
+      rows.push('<tr><td class="sticky">Gross profit</td>' + ys.map(y => (a.values.grossProfit && a.values.grossProfit[y]) ? cell('grossProfit', y, m) : calc('grossProfit', y, m, 'grossProfitDerived')).join('') + '</tr>');
+      rep('Operating income', 'operatingIncome');
+    }
+    rep('Net income', 'netIncome'); rep('Diluted EPS (USD per share)', 'epsDiluted', eps);
+    grp('Balance sheet'); rep('Total assets', 'assets'); rep('Total liabilities', 'liabilities'); rep("Shareholders' equity", 'equity'); rep(cashRuns ? 'Cash (definition changes) †' : 'Cash and equivalents', 'cash'); if (!bank) rep('Debt', 'debt');
+    grp('Cash flow'); rep('Operating cash flow', 'operatingCashFlow'); if (!bank) { rep('Capital expenditure', 'capex'); der('Free cash flow (derived)', 'fcf', m); }
+    grp('Growth and profitability (derived)'); der('Revenue growth', 'revenueGrowth', v => pct(v));
+    if (!bank) { der('Gross margin', 'grossMargin', v => plain(v)); der('Operating margin', 'operatingMargin', v => plain(v)); }
+    der('Net margin', 'netMargin', v => plain(v));
+    if (!bank) der('FCF margin', 'fcfMargin', v => plain(v));
+    der('Return on equity', 'roe', v => plain(v)); der('Return on assets', 'roa', v => plain(v));
+    grp('Leverage (derived)'); if (!bank) { der('Debt to equity', 'debtToEquity', v => CS.num(v, 2) + '×'); der('Net debt (debt − cash)', 'netDebt', m); } der('Liabilities to assets', 'liabilitiesToAssets', v => plain(v));
     const more = ys.length > 6 ? '<p class="fd-years"><button type="button" class="btn" id="fdAllYears" aria-expanded="false" aria-controls="fdTable">Show all ' + ys.length + ' years</button><span class="cap"> Showing the latest 6 of ' + ys.length + ' fiscal years.</span></p>' : '';
-    return more + '<table id="fdTable" class="t fd-table"><caption class="sr-only">Annual figures reported to the SEC and ratios derived from them</caption><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>';
+    return more + '<table id="fdTable" class="t fd-table"><caption class="sr-only">Annual figures reported to the SEC and ratios derived from them</caption><thead>' + head + '</thead><tbody>' + rows.join('') + '</tbody></table>' + notesBelow(c, cashRuns, bank);
+  }
+  function notesBelow(c, cashRuns, bank) {
+    const out = [];
+    if (cashRuns) out.push('<p class="cap"><b>† Cash is not one continuous series.</b> ' + cashRuns.map(r => 'FY' + r.fromFy + (r.toFy !== r.fromFy ? '–FY' + r.toFy : '') + ': ' + E(r.meaning)).join('; ') + '. Compare years only within the same definition.</p>');
+    if (bank) out.push('<p class="cap"><b>Not shown for a bank:</b> cost of revenue, gross profit, operating income, capital expenditure, free cash flow, net debt, debt to equity and the margins built from them. Interest is a bank\'s operating cost and deposits are its funding, so these measures do not mean what they mean for other companies. Revenue is the total net revenue the bank reports.</p>');
+    return out.join('');
   }
 
   /* ---------- page ---------- */
@@ -102,14 +119,19 @@
   function render(c) {
     const a = FundCalc.analyze(c), sc = scaleFor(c), fr = FundCalc.freshness(c, today());
     const L = a.latestFiscalYear, r = L != null ? a.ratios[L] : {}, V = (k, y) => (a.values[k] && a.values[k][y] ? a.values[k][y].val : null);
-    const notes = [];
+    const notes = [], bank = c.profile === 'bank';
+    if (bank) notes.push('<div class="banner"><span><b>Analysed as a bank.</b> ' + E(c.name) + ' reports like a bank (' + E(c.profileReason || '') + '), so industrial measures such as gross profit, operating margin and free cash flow are not shown rather than estimated.</span></div>');
+    const stale = (c.coverage && c.coverage.stale) || {};
+    Object.keys(stale).forEach(k => notes.push('<div class="banner warn"><span><b>' + E(stale[k].label) + ' is not shown.</b> The company last reported it for FY' + stale[k].lastFy + ' (tag ' + E(stale[k].tag) + ') but its other figures run to FY' + stale[k].companyLatestFy + ', so it is not presented as current.</span></div>'));
     if (fr.stale && !c.synthetic) notes.push('<div class="banner warn"><span><b>This may be out of date.</b> The latest annual report here was filed ' + fdate(fr.latestFiled) + ' (' + CS.int(fr.daysSinceFiled / 30.4) + ' months before today); a newer one may exist.</span></div>');
     a.warnings.forEach(w => notes.push('<div class="banner warn"><span>' + E(w.message) + '</span></div>'));
-    const cov = c.coverage || { found: {}, missing: [] }, checks = c.checks || [];
+    const cov = c.coverage || { found: {}, missing: [], stale: {} }, checks = c.checks || [];
     const label = k => (c.metrics[k] ? c.metrics[k].label : k);
     const audit = '<details class="box" id="audit"><summary>Data checks and coverage' + (checks.length ? ' <span class="chip">' + checks.length + ' flagged</span>' : ' <span class="chip ok">no flags</span>') + '</summary>' +
       (checks.length ? '<h3>Flagged for a second look (numbers are shown as filed, never altered)</h3><ul>' + checks.map(x => '<li>' + E(x.message) + '</li>').join('') + '</ul>' : '<p class="cap">Automatic checks (balance sheet identity, gross profit arithmetic, filing dates, large revenue jumps, stale or gapped series, definition changes) found nothing to flag.</p>') +
       '<h3>What was found</h3><ul>' + Object.keys(cov.found).map(k => '<li><b>' + E(label(k)) + '</b>: ' + cov.found[k].years + ' fiscal year' + (cov.found[k].years === 1 ? '' : 's') + ' from <code>' + cov.found[k].tags.map(E).join('</code>, <code>') + '</code></li>').join('') + '</ul>' +
+      (c.coverage && c.coverage.balanceSheetBasis ? '<h3>Balance sheet basis</h3><p class="cap">' + E(c.coverage.balanceSheetBasis) + '</p>' : '') +
+      (Object.keys(cov.stale || {}).length ? '<h3>Not shown because it stopped being reported</h3><ul>' + Object.keys(cov.stale).map(k => { const d = cov.stale[k]; return '<li><b>' + E(d.label) + '</b>: last reported for FY' + d.lastFy + ' (' + usd(d.val, sc) + (sc.div === 1e9 ? 'B' : 'M') + ', tag ' + E(d.tag) + ', filed ' + E(d.filed || '') + '); the company reports through FY' + d.companyLatestFy + '.</li>'; }).join('') + '</ul>' : '') +
       (cov.missing.length ? '<h3>Not reported under the standard tags (left blank, never estimated)</h3><ul>' + cov.missing.map(k => '<li>' + E(k in c.metrics ? label(k) : ({ revenue: 'Revenue', costOfRevenue: 'Cost of revenue', grossProfit: 'Gross profit', operatingIncome: 'Operating income', netIncome: 'Net income', epsDiluted: 'Diluted EPS', operatingCashFlow: 'Operating cash flow', capex: 'Capital expenditure', assets: 'Total assets', liabilities: 'Total liabilities', equity: "Shareholders' equity", cash: 'Cash and equivalents', debt: 'Debt' }[k] || k)) + '</li>').join('') + '</ul>' : '') + '</details>';
     const cikLink = c.synthetic ? '' : ' · <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=' + c.cik + '&type=10-K" target="_blank" rel="noopener">All SEC filings</a>';
     $('detail').innerHTML =
@@ -117,21 +139,26 @@
       '<div class="xlinks" id="xlinks" hidden></div>' +
       '<p class="cap" id="fresh">FY' + (L == null ? '—' : L) + ' ended <b>' + fdate(c.latestPeriodEnd) + '</b> · filed <b>' + fdate(c.latestFiled) + '</b> · compiled ' + fdate((c.generated || '').slice(0, 10)) + ' · USD ' + sc.name + ' except per share · ' + (c.synthetic ? 'simulated data' : 'SEC EDGAR') + cikLink + '</p>' +
       '<div class="notes">' + notes.join('') + '</div>' +
+      (bank ? '<div class="metrics" aria-label="Key figures">' +
+        tile('Net revenue · FY' + L, usd(V('revenue', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), r.revenueGrowth == null ? 'Growth needs the previous year' : pct(r.revenueGrowth) + ' year over year', dir(r.revenueGrowth)) +
+        tile('Net margin', plain(r.netMargin), 'Net income ' + usd(V('netIncome', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), dir(r.netMargin)) +
+        tile('Return on equity', plain(r.roe), r.roe == null ? 'Blank: needs positive average equity' : 'Net income ÷ average equity') +
+        tile('Return on assets', plain(r.roa), 'Net income ÷ average assets') + '</div>' :
       '<div class="metrics" aria-label="Key figures">' +
         tile('Revenue · FY' + L, usd(V('revenue', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), r.revenueGrowth == null ? 'Growth needs the previous year' : pct(r.revenueGrowth) + ' year over year', dir(r.revenueGrowth)) +
         tile('Operating margin', plain(r.operatingMargin), 'Gross margin ' + plain(r.grossMargin)) +
         tile('Net margin', plain(r.netMargin), 'Net income ' + usd(V('netIncome', L), sc) + (sc.div === 1e9 ? 'B' : 'M'), dir(r.netMargin)) +
         tile('Free cash flow', r.fcf == null ? '—' : usd(r.fcf, sc) + (sc.div === 1e9 ? 'B' : 'M'), r.fcf == null ? 'Blank: needs operating cash flow and capex' : 'FCF margin ' + plain(r.fcfMargin), dir(r.fcf)) +
-      '</div>' +
+      '</div>') +
       '<details class="more"><summary>More ratios</summary><div class="metrics" aria-label="More ratios">' +
         tile('Revenue CAGR', pct(a.cagr[3]), '3 years' + (a.cagr[5] != null ? ' · 5 years ' + pct(a.cagr[5]) : ' · 5 years not available'), dir(a.cagr[3])) +
-        tile('Return on equity', plain(r.roe), r.roe == null ? 'Blank: needs positive average equity' : 'Net income ÷ average equity') +
-        tile('Debt to equity', r.debtToEquity == null ? '—' : CS.num(r.debtToEquity, 2) + '×', r.debtToEquity == null ? 'Blank: debt or positive equity missing' : 'Net debt ' + usd(r.netDebt, sc) + (sc.div === 1e9 ? 'B' : 'M')) +
+        (bank ? tile('Liabilities to assets', plain(r.liabilitiesToAssets), 'Balance sheet leverage') : tile('Return on equity', plain(r.roe), r.roe == null ? 'Blank: needs positive average equity' : 'Net income ÷ average equity') +
+        tile('Debt to equity', r.debtToEquity == null ? '—' : CS.num(r.debtToEquity, 2) + '×', r.debtToEquity == null ? 'Blank: debt or positive equity missing' : 'Net debt ' + usd(r.netDebt, sc) + (sc.div === 1e9 ? 'B' : 'M'))) +
       '</div></details>' +
       '<div class="charts two">' +
         '<div class="card"><h3>Revenue and net income</h3><p class="cap">USD ' + sc.name + ' by fiscal year.</p><div class="chart-box short"><canvas id="chRev" role="img" aria-label="Revenue and net income by fiscal year"></canvas></div></div>' +
         '<div class="card"><h3>Margins</h3><p class="cap">Share of revenue; a gap in a line means the figure was not reported or not meaningful.</p><div class="chart-box short"><canvas id="chMargin" role="img" aria-label="Margins by fiscal year"></canvas></div></div>' +
-        '<div class="card"><h3>Balance sheet</h3><p class="cap">Year-end balances, USD ' + sc.name + '.</p><div class="chart-box short"><canvas id="chBal" role="img" aria-label="Balance sheet items by fiscal year"></canvas></div></div>' +
+        '<div class="card"><h3>Balance sheet</h3><p class="cap">Year-end balances, USD ' + sc.name + '.' + (c.coverage && c.coverage.definitions && c.coverage.definitions.cash ? ' Cash is left out of this chart because its definition changes over time (see the table).' : '') + (bank ? ' Debt is not shown for a bank.' : '') + '</p><div class="chart-box short"><canvas id="chBal" role="img" aria-label="Balance sheet items by fiscal year"></canvas></div></div>' +
         '<div class="card"><h3>Cash flow</h3><p class="cap">USD ' + sc.name + ': operating cash flow, capital expenditure and free cash flow.</p><div class="chart-box short"><canvas id="chCash" role="img" aria-label="Cash flow by fiscal year"></canvas></div></div>' +
       '</div>' +
       audit +

@@ -471,3 +471,57 @@ def test_explain_lists_candidate_facts_from_the_saved_response(mock, tmp_path, c
     assert cli.main(["explain", "AAA", "revenue", "--raw-dir", str(raw)]) == 0
     assert "fact(s)" in capsys.readouterr().out
     assert cli.main(["explain", "AAA", "nonsense", "--raw-dir", str(raw)]) == 2
+
+
+# ---------------------------------------------------------------- consistent balance sheets, stale series, definitions, banks
+def test_a_years_assets_liabilities_and_equity_come_from_one_filing_never_a_mix():
+    A, B, Cc = "0000000001-16-000001", "0000000001-17-000001", "0000000001-18-000001"
+    c = R.reduce_company(company({
+        "Assets": {"USD": [fact("2016-06-30", 193694, filed="2016-07-28", accn=A), fact("2016-06-30", 193468, filed="2017-08-02", accn=B)]},
+        "Liabilities": {"USD": [fact("2016-06-30", 121697, filed="2016-07-28", accn=A), fact("2016-06-30", 121471, filed="2017-08-02", accn=B)]},
+        "StockholdersEquity": {"USD": [fact("2016-06-30", 71997, filed="2016-07-28", accn=A), fact("2016-06-30", 71997, filed="2017-08-02", accn=B),
+                                       fact("2016-06-30", 83090, filed="2018-08-03", accn=Cc)]}}), "T")                       # a later restatement of equity ONLY
+    got = {k: (pts(c, k)[0]["val"], pts(c, k)[0]["accn"]) for k in ("assets", "liabilities", "equity")}
+    assert got == {"assets": (193468, B), "liabilities": (121471, B), "equity": (71997, B)}                                 # latest filing holding all three
+    assert not [x for x in c["checks"] if x["code"] == "BALANCE_IDENTITY"]
+    assert "one filing" in c["coverage"]["balanceSheetBasis"]
+
+
+def test_a_figure_missing_from_the_winning_filing_stays_unavailable_not_borrowed_from_another_version():
+    c = R.reduce_company(company({
+        "Assets": {"USD": [fact("2020-12-31", 100, accn="0000000001-21-000001", filed="2021-02-01")]},
+        "StockholdersEquity": {"USD": [fact("2020-12-31", 40, accn="0000000001-21-000001", filed="2021-02-01")]},
+        "Liabilities": {"USD": [fact("2020-12-31", 55, accn="0000000001-20-000001", filed="2020-02-01")]}}), "T")                  # only in an older, different filing
+    assert pts(c, "assets")[0]["val"] == 100 and pts(c, "equity")[0]["val"] == 40 and "liabilities" not in c["metrics"]
+    assert "liabilities" in c["coverage"]["missing"]
+
+
+def test_a_stale_series_is_removed_from_the_figures_and_recorded_so_it_cannot_look_current():
+    rev = [fact(f"{y}-12-31", 100 + y, start=f"{y}-01-01", accn=f"0000000001-{y % 100}-000001") for y in range(2018, 2026)]
+    debt = [fact(f"{y}-12-31", 7e9, accn=f"0000000002-{y % 100}-000001") for y in (2011, 2012, 2013)]
+    c = R.reduce_company(company({"Revenues": {"USD": rev}, "LongTermDebt": {"USD": debt}}), "T")
+    assert "debt" not in c["metrics"] and "debt" not in c["coverage"]["missing"]
+    s = c["coverage"]["stale"]["debt"]
+    assert s["lastFy"] == 2013 and s["val"] == 7e9 and s["tag"] == "LongTermDebt" and s["companyLatestFy"] == 2025 and s["accn"]
+    assert [x for x in c["checks"] if x["code"] == "STALE_SERIES" and "not shown" in x["message"]]
+
+
+def test_cash_that_changes_meaning_is_disclosed_and_equivalent_tags_are_not():
+    cash = {"CashAndDueFromBanks": {"USD": [fact("2014-12-31", 1, accn="a-14-1")]},
+            "CashAndCashEquivalentsAtCarryingValue": {"USD": [fact(f"{y}-12-31", 2, accn=f"a-{y % 100}-1") for y in (2015, 2016)]},
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": {"USD": [fact("2017-12-31", 3, accn="a-17-1")]}}
+    c = R.reduce_company(company(cash), "T")
+    runs = c["coverage"]["definitions"]["cash"]
+    assert [(r["fromFy"], r["toFy"]) for r in runs] == [(2014, 2014), (2015, 2016), (2017, 2017)] and "restricted" in runs[2]["meaning"]
+    assert [x for x in c["checks"] if x["code"] == "DEFINITION_CHANGE"]
+    c2 = R.reduce_company(company({"LongTermDebt": {"USD": [fact("2015-12-31", 5, accn="b-15-1")]},
+                                   "LongTermDebtNoncurrent": {"USD": [fact("2016-12-31", 4, accn="b-16-1")]}, "LongTermDebtCurrent": {"USD": [fact("2016-12-31", 1, accn="b-16-1")]}}), "T")
+    assert "debt" not in c2["coverage"]["definitions"]
+
+
+def test_a_bank_is_recognised_from_its_filing_shape_and_ordinary_companies_are_not():
+    bank = R.reduce_company(company({"Revenues": {"USD": [fact("2023-12-31", 9, start="2023-01-01")]}, "Deposits": {"USD": [fact("2023-12-31", 5)]},
+                                     "NetIncomeLoss": {"USD": [fact("2023-12-31", 2, start="2023-01-01")]}}), "B")
+    assert bank["profile"] == "bank" and "Deposits" in bank["profileReason"]
+    other = R.reduce_company(company({"Revenues": {"USD": [fact("2023-12-31", 9, start="2023-01-01")]}, "CostOfRevenue": {"USD": [fact("2023-12-31", 4, start="2023-01-01")]}, "Deposits": {"USD": [fact("2023-12-31", 5)]}}), "O")
+    assert other["profile"] == "general"

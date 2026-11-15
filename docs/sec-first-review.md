@@ -13,21 +13,31 @@ outside the repository. This note records what the build showed and what was don
 | JPM | operating cash flow of -147.8 billion USD (FY2025) | banks' operating cash flow swings with trading assets and deposits; free cash flow is not meaningful for a bank. Needs the filing check. |
 | AAPL | debt is `LongTermDebt` from FY2022 and noncurrent + current before | excludes commercial paper (documented). |
 
-## Things the rules did not handle and what changed (reducer version 3)
+## Methodology decisions (reducer version 4), approved by the owner on 2026-11-15
 
-1. **JPM debt looked current but stopped at FY2013** (JPM stopped using the `LongTermDebt` tag). The review printed "latest 267.9 billion" for a
-   figure 12 years old. New check `STALE_SERIES` flags a series whose newest value is more than two years behind the company.
-2. **MSFT operating cash flow lacks FY2014 and FY2015**, and the first point is FY2013. New check `GAP_IN_SERIES` flags a hole inside a series. The cause
-   needs the saved SEC response: `python3 -m fundamentals explain MSFT operatingCashFlow --raw-dir ... --year 2015` shows every fact behind it.
-3. **MSFT FY2016 balance sheet does not balance (5.7%).** Equity (83.09 billion) comes from a later filing than assets and liabilities: the FY2018 10-K
-   restated the year (Microsoft adopted a new revenue standard retrospectively), while assets and liabilities still carry the original FY2016 filing. The
-   rule "latest filed value wins" is applied per figure, so vintages mix. The check message now names the filing dates when they differ.
-   FY2016 is outside the ten years shown on the page.
-4. **JPM cash changes definition** (cash and due from banks, then cash and equivalents, then cash including restricted cash from FY2019). New check
-   `TAG_SWITCH_JUMP` flags a change of more than 40% at the year a tag changes.
+1. **One filing per balance sheet.** Total assets, total liabilities and shareholders' equity of a fiscal year all come from the latest annual
+   filing that reports all of them. If the winning filing lacks one, that figure stays unavailable: it is never borrowed from another filing
+   version. Every figure keeps its own filing date and accession number, and the Fundamentals page states the basis. (MSFT FY2016: the original
+   equity of 71,997 million now pairs with that filing's assets and liabilities; the later restated 83,090 is not mixed in.)
+2. **Stale series are not shown.** A series whose newest value is more than two fiscal years behind the company is moved out of the figures into
+   `coverage.stale` with its last value, tag and filing, and the page says so. (JPM debt, last reported FY2013, is never presented as current.)
+3. **Changes of meaning are disclosed.** Where tags for one metric are not interchangeable (cash: cash and equivalents, with restricted cash, cash and due
+   from banks) the file records each run of one meaning, the check `DEFINITION_CHANGE` fires, the table marks cells of an older meaning with a dagger
+   and a footnote, and the balance-sheet chart leaves cash out. Equivalent tags (for example debt as one tag or as noncurrent plus current) are not flagged.
+4. **Banks are analysed as banks.** A company that reports deposits or interest income and has neither cost of revenue nor operating income gets
+   `profile: "bank"`. Gross profit, operating income, capex, free cash flow, net debt, debt-to-equity and the margins built from them are not shown
+   (the page says so) and key figures become net revenue, net margin, return on equity and return on assets.
+5. **Missing means missing.** Nothing is estimated. Unreported figures are listed in the page's data panel and shown as a dash with a tooltip.
+
+## Checks added along the way
+
+`STALE_SERIES`, `GAP_IN_SERIES` (a hole inside a series), `TAG_SWITCH_JUMP` (more than 40% at a tag change), `DEFINITION_CHANGE`, and a balance-identity
+message that names the filing dates when figures differ.
 
 ## Open items
 
-- `verify` results for each company (automatic cross-check) and the manual comparison with the filings are still to be reported by the owner.
-- MSFT FY2014 and FY2015 operating cash flow: pending `explain` on a saved response (needs one more build with `--raw-dir`).
-- MSFT FY2016: decide whether to keep per-figure latest vintage (current) or take each balance sheet from a single filing.
+- MSFT operating cash flow lacks FY2014 and FY2015 (and starts at FY2013). Cause unknown until the saved SEC response is examined with
+  `python3 -m fundamentals explain MSFT operatingCashFlow --raw-dir ... --year 2015`.
+- `verify` results and the manual comparison with the filings, per company, from the owner.
+- JPM operating cash flow of -147.8 billion USD (FY2025): plausible for a bank, to be confirmed against the filing.
+- WMT gross profit is derived (revenue minus cost of revenue) and is not Walmart's own gross-profit-rate definition; total liabilities are not reported.

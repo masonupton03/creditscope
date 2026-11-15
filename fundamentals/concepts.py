@@ -41,3 +41,20 @@ JUMP_LIMIT = 0.8                 # a year-over-year revenue change larger than t
 
 STALE_YEARS = 2                  # a series whose newest value is older than this many years behind the company is flagged
 TAG_SWITCH_JUMP = 0.4            # a change this large at the year a tag changes is flagged (the definition may differ)
+
+# Balance sheet: assets, liabilities and equity of one fiscal year must come from ONE filing (the latest filing that contains all
+# of them), so a later restatement of only some figures can never be mixed with the originals of the others.
+BALANCE_KEYS = ("assets", "liabilities", "equity")
+
+# What a tag means, where different tags for the same metric are NOT interchangeable. A change of meaning inside a series is disclosed.
+MEANING = {
+    "cash": {
+        "CashAndCashEquivalentsAtCarryingValue": "cash and cash equivalents",
+        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents": "cash, cash equivalents and restricted cash",
+        "CashAndDueFromBanks": "cash and due from banks (a narrower item that banks report)",
+    },
+}
+
+# A company is analysed as a bank when it reports deposits or interest income AND has no cost of revenue and no operating income.
+BANK_FACT_TAGS = ("Deposits", "InterestAndDividendIncomeOperating", "InterestIncomeExpenseNet")
+BANK_NOT_MEANINGFUL = ("grossMargin", "operatingMargin", "fcf", "fcfMargin", "netDebt", "debtToEquity")

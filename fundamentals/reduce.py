@@ -17,7 +17,7 @@ from datetime import date, datetime, timezone
 from . import concepts as C
 
 
-REDUCER_VERSION = 3          # bump when the reduction rules change: published files record which rules produced them
+REDUCER_VERSION = 4          # bump when the reduction rules change: published files record which rules produced them
 
 
 def source_digest(company: dict) -> str:
@@ -75,6 +75,34 @@ def _metric(company: dict, spec: dict) -> list:
     return chosen
 
 
+def _balance_sheet(company: dict) -> dict:
+    """{'assets'|'liabilities'|'equity': {period end: point}} with all figures of a year from ONE filing.
+
+    For each balance sheet date, every annual filing that reports at least one of the three is a candidate. The candidate holding the most of
+    them wins; ties go to the latest filing. A figure the winning filing does not contain stays unavailable: it is never taken from a
+    different filing version, because that mixes restated and original numbers."""
+    cand = {}                                                      # end -> accn -> key -> (priority, tag, fact)
+    for key in C.BALANCE_KEYS:
+        spec = C.METRICS[key]
+        for prio, tag in enumerate(spec["tags"]):
+            for f in _facts(company, tag, spec["unit"]):
+                if f.get("form") not in C.ANNUAL_FORMS or f.get("val") is None or not f.get("end") or not f.get("accn"):
+                    continue
+                slot = cand.setdefault(f["end"], {}).setdefault(f["accn"], {})
+                if key not in slot or prio < slot[key][0]:
+                    slot[key] = (prio, tag, f)
+    out = {k: {} for k in C.BALANCE_KEYS}
+    for end, by_accn in cand.items():
+        def rank(item):
+            accn, slot = item
+            filed = max(v[2].get("filed", "") for v in slot.values())
+            return (len(slot), filed, accn)
+        accn, slot = max(by_accn.items(), key=rank)
+        for key, (_, tag, f) in slot.items():
+            out[key][end] = _point(f, tag)
+    return out
+
+
 def _debt(company: dict) -> dict:
     total = {}
     for tag in C.DEBT_TOTAL:
@@ -102,7 +130,7 @@ def _debt(company: dict) -> dict:
     return out
 
 
-def quality_checks(metrics: dict) -> list:
+def quality_checks(metrics: dict, stale: dict = None, definitions: dict = None) -> list:
     """Flags for a human to look at. Nothing here changes or removes a value."""
     by = {k: {p["fy"]: p for p in m["points"]} for k, m in metrics.items()}
     out = []
@@ -131,6 +159,10 @@ def quality_checks(metrics: dict) -> list:
             pt = p.get(fy)
             if pt and pt.get("filed") and pt["filed"] < pt["end"]:
                 add("FILED_BEFORE_PERIOD_END", fy, f"FY{fy} {k}: filing date {pt['filed']} is before the period end {pt['end']}.")
+    for k, d in (stale or {}).items():
+        add("STALE_SERIES", d["lastFy"], f"{d['label']}: the newest value is FY{d['lastFy']} but the company reports through FY{d['companyLatestFy']}; the filer stopped using tag {d['tag']}, so the figure is not shown and nothing current is available for it.")
+    for k, runs in (definitions or {}).items():
+        add("DEFINITION_CHANGE", runs[0]["fromFy"], f"{metrics[k]['label']} changes meaning inside the series: " + "; ".join(f"FY{r['fromFy']}" + (f"-FY{r['toFy']}" if r["toFy"] != r["fromFy"] else "") + f" {r['meaning']}" for r in runs) + ". Years are not directly comparable across these changes.")
     last_fy = max((p["fy"] for m in metrics.values() for p in m["points"]), default=None)
     for k, m in metrics.items():
         pts = m["points"]
@@ -146,11 +178,52 @@ def quality_checks(metrics: dict) -> list:
     return out
 
 
-def coverage(metrics: dict) -> dict:
+def split_stale(metrics: dict):
+    """Move a series whose newest value is long out of date out of `metrics`, so nothing can show it as current.
+    Returns (metrics, stale) where stale[key] keeps the last value with its filing for the record."""
+    last_fy = max((p["fy"] for m in metrics.values() for p in m["points"]), default=None)
+    keep, stale = {}, {}
+    for k, m in metrics.items():
+        last = m["points"][-1]
+        if last_fy and last["fy"] < last_fy - C.STALE_YEARS:
+            stale[k] = {"label": m["label"], "lastFy": last["fy"], "tag": last["tag"], "val": last["val"], "unit": m["unit"], "filed": last.get("filed"), "accn": last["accn"], "companyLatestFy": last_fy}
+        else:
+            keep[k] = m
+    return keep, stale
+
+
+def definition_changes(metrics: dict) -> dict:
+    """For metrics whose tags are not interchangeable (see concepts.MEANING): consecutive runs of the same meaning, only if there is more than one."""
+    out = {}
+    for k, meanings in C.MEANING.items():
+        if k not in metrics:
+            continue
+        runs = []
+        for p in metrics[k]["points"]:
+            meaning = meanings.get(p["tag"], p["tag"])
+            if runs and runs[-1]["meaning"] == meaning:
+                runs[-1]["toFy"] = p["fy"]
+            else:
+                runs.append({"meaning": meaning, "tag": p["tag"], "fromFy": p["fy"], "toFy": p["fy"]})
+        if len(runs) > 1:
+            out[k] = runs
+    return out
+
+
+def profile(company: dict, metrics: dict) -> dict:
+    banky = [t for t in C.BANK_FACT_TAGS if _facts(company, t, "USD")]
+    if banky and "costOfRevenue" not in metrics and "operatingIncome" not in metrics:
+        return {"profile": "bank", "profileReason": "reports " + ", ".join(banky) + " and has no cost of revenue or operating income"}
+    return {"profile": "general", "profileReason": None}
+
+
+def coverage(metrics: dict, stale: dict = None, definitions: dict = None) -> dict:
     """What was found, which tags supplied it, and what is missing: the honest record of non-standard filers."""
     wanted = list(C.METRICS) + ["debt"]
+    stale = stale or {}
     return {"found": {k: {"years": len(m["points"]), "tags": sorted({p["tag"] for p in m["points"]})} for k, m in metrics.items()},
-            "missing": [k for k in wanted if k not in metrics]}
+            "missing": [k for k in wanted if k not in metrics and k not in stale], "stale": stale, "definitions": definitions or {},
+            "balanceSheetBasis": "Total assets, total liabilities and shareholders' equity of each fiscal year come from one filing: the latest annual filing that reports all of them. Each figure carries its own filing date and accession number."}
 
 
 def reduce_company(company: dict, ticker: str, generated: str = None, synthetic: bool = False, name: str = None) -> dict:
@@ -163,12 +236,22 @@ def reduce_company(company: dict, ticker: str, generated: str = None, synthetic:
     debt = sorted(_debt(company).values(), key=lambda p: p["end"])[-C.MAX_YEARS:]
     if debt:
         metrics["debt"] = {"label": "Debt (long-term, including current portion where reported)", "unit": "USD", "kind": "instant", "points": debt}
+    bs = _balance_sheet(company)
+    for key in C.BALANCE_KEYS:
+        pts = sorted(bs[key].values(), key=lambda p: p["end"])[-C.MAX_YEARS:]
+        if pts:
+            metrics[key] = {"label": C.METRICS[key]["label"], "unit": "USD", "kind": "instant", "points": pts}
+        else:
+            metrics.pop(key, None)
     # a metric must not carry two points for one fiscal-year label (e.g. a transition period): keep the later period end
     for m in metrics.values():
         by_fy = {}
         for p in m["points"]:
             by_fy[p["fy"]] = p
         m["points"] = [by_fy[k] for k in sorted(by_fy)]
+    metrics, stale = split_stale(metrics)
+    defs = definition_changes(metrics)
+    prof = profile(company, metrics)
     filed = [p["filed"] for m in metrics.values() for p in m["points"] if p.get("filed")]
     ends = [p["end"] for m in metrics.values() for p in m["points"]]
     cik = int(company.get("cik", 0))
@@ -177,6 +260,7 @@ def reduce_company(company: dict, ticker: str, generated: str = None, synthetic:
         "source": "SEC EDGAR XBRL company facts (us-gaap, annual reports)", "currency": "USD",
         "generated": generated or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "latestFiled": max(filed) if filed else None, "latestPeriodEnd": max(ends) if ends else None, "metrics": metrics,
-        "coverage": coverage(metrics), "checks": quality_checks(metrics),
+        "profile": prof["profile"], "profileReason": prof["profileReason"],
+        "coverage": coverage(metrics, stale, defs), "checks": quality_checks(metrics, stale, defs),
         "reducerVersion": REDUCER_VERSION, "sourceDigest": source_digest(company),
     }
