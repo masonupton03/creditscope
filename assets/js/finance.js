@@ -232,6 +232,7 @@
   }
 
   const api = { PERIODS, TRADING_DAYS, MIN_VOL_RETURNS, MIN_BETA_RETURNS, EPS, LABELS, startDateFor, shiftMonths, daysBetween,
-    lastIndexOnOrBefore, firstIndexOnOrAfter, levels, dividendsByIndex, maxDrawdown, drawdownSeries, summarize, compare, chartData };
+    lastIndexOnOrBefore, firstIndexOnOrAfter, levels, dividendsByIndex, maxDrawdown, drawdownSeries, summarize, compare, chartData,
+    sampleStd, sampleCov, returnsOver, mean };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Finance = api;
 })(typeof window !== 'undefined' ? window : globalThis);

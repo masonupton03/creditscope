@@ -80,22 +80,14 @@ screenshotted), regenerate it in Alpaca's dashboard and run `setup` again.
 **Custom watchlists.** Today a watchlist is a list of tickers in the browser's storage. Next: several named lists stored in
 `~/.creditscope/watchlists.json` (survive browser changes), and `sync` keeps the union of all lists and holdings up to date.
 
-**Portfolio holdings** (`~/.creditscope/portfolio.json`, never in the repo, read and written only through the local server):
+**Portfolio holdings** are built: see `portfolio-dashboard.md` (transaction ledger in `~/.creditscope/portfolio.json`, edited through the
+local server, analytics in `assets/js/portfolio.js` verified against `tests/ref_portfolio.py`).
 
-```json
-{ "version": 1, "baseCurrency": "USD",
-  "accounts": [ { "id": "taxable", "name": "Brokerage",
-    "lots": [ { "symbol": "VTI", "shares": 12.5, "costBasisPerShare": 215.40, "acquired": "2023-03-14" } ],
-    "cash": 1500.00 } ] }
-```
-
-**Risk analytics** to add to `finance.js`, each with an independent Python reference and tests: portfolio value and return
-series from lots, weights and concentration (HHI), portfolio volatility and maximum drawdown, beta and correlation to SPY,
-correlation matrix, contribution to risk, drift from target weights. Portfolio return is computed from holdings and the
-same split-adjusted/total-return series, so the price-return vs total-return rule applies unchanged.
+**Still to add** to `finance.js`/`portfolio.js`, each with an independent reference: correlation matrix, contribution to risk, drift
+from target weights, XIRR.
 
 ## Not done yet (decisions are in the project discussion)
 
 * Alpaca account and keys (yours to create), and the result of `doctor` on them.
 * Adapters for another provider if the IEX-only limit matters.
-* The portfolio, multi-watchlist and risk-analytics implementations above.
+* Multiple named watchlists, risk contribution, target-weight drift, CSV import of transactions.

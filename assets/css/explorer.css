@@ -66,3 +66,13 @@
 
 @media (max-width: 1000px) { .ex-layout { grid-template-columns: 1fr; } .ex-side { position: static; order: -1; } }
 @media (max-width: 560px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .metric .v { font-size: 22px; } .ex-results li { grid-template-columns: 64px minmax(0, 1fr) auto; } }
+
+/* Five navigation links do not fit on one row of a phone: the links drop to a second row */
+@media (max-width: 560px) {
+  .nav.five .wrap { flex-wrap: wrap; height: auto; padding-top: 8px; padding-bottom: 4px; gap: 4px 16px; }
+  .nav.five .spacer { display: none; }
+  .nav.five .brand { order: 0; margin-right: auto; }
+  .nav.five .btn { order: 1; }
+  .nav.five .wrap::before { content: ""; order: 2; flex-basis: 100%; height: 0; }
+  .nav.five a.link { order: 3; font-size: 13.5px; }
+}

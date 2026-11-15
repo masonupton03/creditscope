@@ -176,7 +176,7 @@ def simulate():
         div_field = None if div is None else dividends          # None = unknown, [] = known none, else payments
         series_out[sym] = {"symbol": sym, "name": name, "type": "ETF" if typ == "E" else "Stock", "exchange": exch,
                            "currency": "USD", "synthetic": True, "dates": dates, "close": close, "volume": volume,
-                           "dividends": div_field}
+                           "dividends": div_field, "splits": []}
         index_entries.append({"s": sym, "n": name, "t": typ, "x": exch, "r": rank})
     index_entries.sort(key=lambda e: (e["r"], e["s"]))
     meta = {"synthetic": True, "provider": "Simulated sample data (not real market prices)", "asOf": END.isoformat(),

@@ -18,7 +18,9 @@ def read(name):
 
 
 def nav(html):
-    block = re.search(r"<nav class=\"nav\".*?</nav>", html, re.S).group(0)
+    block = re.search(r"<nav class=\"nav( five)?\".*?</nav>", html, re.S).group(0)
+    block = block.replace('<nav class="nav five"', '<nav class="nav"')
+    block = re.sub(r'\s*<a class="link( active)?" href="portfolio.html"[^>]*>Portfolio</a>', '', block)   # the Explorer/Portfolio pages add one link
     return block.replace('class="link active"', 'class="link"').replace(' aria-current="page"', '')
 
 

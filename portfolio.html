@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CreditScope · Portfolio</title>
+<meta name="description" content="Portfolio analytics: holdings, cost basis, unrealized gains, allocation, time-weighted return against SPY, volatility, beta, drawdown and concentration. The public page shows a simulated portfolio.">
+<meta name="theme-color" content="#060a10">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="stylesheet" href="assets/css/explorer.css">
+<link rel="stylesheet" href="assets/css/portfolio.css">
+<script>try{var t=localStorage.getItem('creditscope.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<div class="loading" id="loading"><div><div class="spinner"></div><div>Loading the portfolio…</div></div></div>
+
+<nav class="nav five" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html" aria-label="CreditScope home"><svg viewBox="-1 -1 2 2" aria-hidden="true"><circle r="0.6" fill="none" stroke="#ffb020" stroke-width="0.14"/><g stroke="#ffb020" stroke-width="0.1" stroke-linecap="round"><path d="M0.5 0H0.95M-0.5 0H-0.95M0 0.5V0.95M0 -0.5V-0.95"/></g><polyline points="-0.36,0.26 -0.12,0 0.05,0.15 0.32,-0.3" fill="none" stroke="#2fd18b" stroke-width="0.14" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="word">CreditScope</span></a>
+    <a class="link" href="index.html">Today</a>
+    <a class="link" href="browse.html">Browse</a>
+    <a class="link" href="trends.html">Trends</a>
+    <a class="link" href="explorer.html">Explorer</a>
+    <a class="link active" href="portfolio.html" aria-current="page">Portfolio</a>
+    <span class="spacer"></span>
+    <button class="btn small label" id="installBtn" type="button" hidden>Install app</button>
+    <button class="btn icon" id="themeBtn" type="button" aria-label="Switch to light theme" title="Toggle light / dark theme">☀</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Portfolio analytics</div>
+    <h1>Your portfolio, measured properly</h1>
+    <p class="lead">Holdings, cost basis and unrealized gains, allocation, and performance against SPY. Time-weighted return is kept separate from the change in account value, so deposits and withdrawals are never mistaken for gains.</p>
+    <div class="banner" id="dataBanner" role="status" hidden></div>
+    <div class="banner private" id="privateBanner" role="note" hidden><span></span></div>
+    <div class="banner synth" id="synthBanner" role="note" hidden><span><b>Simulated demonstration.</b> This portfolio and every price in it are <b>made up</b> (a seeded model); they are not real holdings or real market prices. A private edition of this page runs only on the owner’s computer with real data and real holdings, which are never published.</span></div>
+  </div>
+</header>
+
+<main class="wrap" id="app" hidden>
+  <section class="card" aria-labelledby="sumH">
+    <h2 id="sumH">Account today</h2>
+    <p class="cap" id="asOf"></p>
+    <div class="metrics" id="summary"></div>
+  </section>
+
+  <section class="card" aria-labelledby="perfH">
+    <div class="ex-head"><h2 id="perfH">Performance</h2>
+      <div class="seg" id="periods" role="group" aria-label="Period"></div></div>
+    <div class="notes" id="notes"></div>
+    <div class="pf-split">
+      <div>
+        <h3 class="sub">Return is not the same as a change in account value</h3>
+        <table class="t pf-recon"><tbody id="recon"></tbody></table>
+      </div>
+      <div class="metrics tight" id="perfTiles"></div>
+    </div>
+  </section>
+
+  <section class="charts" aria-label="Charts">
+    <div class="card"><h3 id="chGrowthT">Growth of 100</h3><p class="cap" id="chGrowthC"></p><div class="chart-box"><canvas id="chGrowth" role="img" aria-label="Portfolio time-weighted growth against SPY"></canvas></div></div>
+    <div class="card"><h3>Account value and net contributions</h3><p class="cap">The gap between the two lines is the investment gain. Contributions are everything you put in minus everything you took out.</p><div class="chart-box short"><canvas id="chValue" role="img" aria-label="Account value and net contributions"></canvas></div></div>
+    <div class="card"><h3>Drawdown</h3><p class="cap">Fall from the portfolio’s previous peak, measured on the time-weighted return so deposits do not hide losses.</p><div class="chart-box mini"><canvas id="chDD" role="img" aria-label="Drawdown"></canvas></div></div>
+  </section>
+
+  <section class="pf-split two" aria-label="Allocation and concentration">
+    <div class="card"><h3>Allocation</h3><div class="chart-box mini"><canvas id="chAlloc" role="img" aria-label="Allocation by security"></canvas></div><ul class="legend" id="allocLegend"></ul></div>
+    <div class="card"><h3>Concentration risk</h3><div class="metrics tight" id="conc"></div></div>
+  </section>
+
+  <section class="card" aria-labelledby="holdH">
+    <h2 id="holdH">Holdings</h2>
+    <p class="cap" id="holdCap"></p>
+    <div class="table-wrap"><table class="t" id="holdTable"><thead><tr><th>Symbol</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Price</th><th class="r">Value</th><th class="r">Weight</th><th class="r">Unrealized</th><th class="r">Dividends</th></tr></thead><tbody id="holdBody"></tbody></table></div>
+  </section>
+
+  <section class="card" aria-labelledby="txH">
+    <h2 id="txH">Transactions</h2>
+    <p class="cap" id="txCap"></p>
+    <form id="txForm" class="pf-form" autocomplete="off" hidden>
+      <label>Type<select id="fType"><option value="buy">Buy</option><option value="sell">Sell</option><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option><option value="dividend">Dividend (manual)</option><option value="fee">Fee</option></select></label>
+      <label>Date<input id="fDate" type="date" required></label>
+      <label data-for="buy sell dividend">Symbol<input id="fSymbol" type="text" maxlength="10" spellcheck="false" placeholder="VTI"></label>
+      <label data-for="buy sell">Shares<input id="fShares" type="number" step="any" min="0" inputmode="decimal"></label>
+      <label data-for="buy sell">Price per share<input id="fPrice" type="number" step="any" min="0" inputmode="decimal"></label>
+      <label data-for="buy sell">Fee<input id="fFee" type="number" step="any" min="0" inputmode="decimal" value="0"></label>
+      <label data-for="deposit withdrawal dividend fee">Amount<input id="fAmount" type="number" step="any" min="0" inputmode="decimal"></label>
+      <label class="check" data-for="buy sell"><input id="fExternal" type="checkbox"> Funded from outside the portfolio <small>(an existing position: its cost counts as a deposit on that date)</small></label>
+      <button class="btn primary" type="submit">Add</button>
+    </form>
+    <div class="banner warn" id="txMsg" role="alert" hidden></div>
+    <div class="table-wrap"><table class="t" id="txTable"><thead><tr><th>Date</th><th>Type</th><th>Symbol</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Amount</th><th></th></tr></thead><tbody id="txBody"></tbody></table></div>
+  </section>
+
+  <details class="box ex-method" id="method">
+    <summary>How these numbers are computed, and what they assume</summary>
+    <h3>Time-weighted return (the number to compare with SPY)</h3>
+    <p>The portfolio is valued at every close. Each day’s return strips out that day’s deposits and withdrawals, then the daily returns are chained. Flows are assumed to happen at the close, at the price you traded. This measures how the <b>investments</b> performed, regardless of when money moved.</p>
+    <div class="formula">r<sub>t</sub> = (Value<sub>t</sub> − Flow<sub>t</sub>) ÷ Value<sub>t−1</sub> − 1</div>
+    <h3>Change in account value is not a return</h3>
+    <p>Depositing $1,000 raises the balance by $1,000 and earns nothing. The page therefore shows value change, net contributions and investment gain (value change minus contributions, in dollars) next to the percentage returns.</p>
+    <h3>Modified Dietz</h3>
+    <p>A dollar-weighted estimate that weights each flow by the fraction of the period it was invested; it reflects the timing of <b>your</b> deposits, so it can differ from the time-weighted figure.</p>
+    <div class="formula">R = (V₁ − V₀ − ΣF) ÷ (V₀ + Σ w·F), w = (T − t) ÷ T</div>
+    <h3>Dividends, splits and missing data</h3>
+    <p>Dividends are credited to cash on the ex-date for the shares held at the previous close and are not reinvested. Share counts are adjusted for later stock splits. If a security’s dividend history is unknown, both the portfolio and SPY switch to price return and say so. A missing price is carried forward and flagged; holdings are never valued at cost to fill a gap, and performance starts after the last day a price was missing.</p>
+    <h3>Cost basis and gains</h3>
+    <p>First-in, first-out lots; buy fees are part of cost, sell fees reduce proceeds. Taxes, wash sales, currencies, options and short positions are not modelled.</p>
+    <h3>Risk</h3>
+    <p>Volatility is the sample standard deviation of daily time-weighted returns × √252 (20 returns needed). Beta and correlation use overlapping daily returns with SPY (60 needed). Maximum drawdown is measured on the time-weighted index. Concentration uses the weights of positions only: top holdings, the Herfindahl index (sum of squared weights) and its inverse, the effective number of equal-sized holdings.</p>
+    <h3>Privacy</h3>
+    <p>On the public site this page only reads a simulated sample. In the personal edition your ledger is stored in a file outside the code repository, served to <b>localhost only</b>, never put in browser storage or the offline cache, and no brokerage is connected. Educational tool, not investment advice.</p>
+  </details>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>CreditScope</b> is a class project. Nothing on this page is investment advice; past performance does not predict future results.</p>
+    <p><a href="https://github.com/masonupton03/creditscope">Source code on GitHub</a></p>
+  </div>
+</footer>
+
+<script src="assets/vendor/chart.umd.min.js"></script>
+<script src="assets/js/finance.js"></script>
+<script src="assets/js/portfolio.js"></script>
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/common.js"></script>
+<script src="assets/js/portfolio-page.js"></script>
+</body>
+</html>

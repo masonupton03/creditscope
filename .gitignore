@@ -17,3 +17,12 @@ credentials*.json
 *.pem
 *.key
 secrets/
+
+# --- Personal edition: portfolio holdings (the simulated demo file is the only tracked portfolio) ---
+portfolio.json
+portfolio.json.bak
+portfolio.json.tmp
+*.portfolio.json
+holdings*.json
+transactions*.csv
+!explorer/sample/portfolio.json

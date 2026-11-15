@@ -19,10 +19,10 @@ from pathlib import Path
 from typing import Callable, Optional
 from urllib.parse import unquote, urlsplit
 
-from . import build, config, service
+from . import build, config, portfolio, service
 
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
-SITE_FILES = {"index.html", "browse.html", "trends.html", "explorer.html", "manifest.webmanifest", "sw.js",
+SITE_FILES = {"index.html", "browse.html", "trends.html", "explorer.html", "portfolio.html", "manifest.webmanifest", "sw.js",
               "data/history.csv", "data/status.json"}
 SITE_PREFIXES = ("assets/", "explorer/sample/")
 SERIES_FILE = re.compile(r"^series/[A-Z0-9][A-Z0-9.\-]{0,9}\.json$")
@@ -58,10 +58,55 @@ class Handler(BaseHTTPRequestHandler):
         name = host.rsplit(":", 1)[0].strip("[]") if not host.startswith("[") else host.split("]")[0].strip("[")
         return name in LOOPBACK
 
+    def _same_origin(self) -> bool:
+        """Browsers send Sec-Fetch-Site / Origin on cross-site requests; refuse anything that is not this server."""
+        if (self.headers.get("Sec-Fetch-Site") or "same-origin") not in ("same-origin", "none"):
+            return False
+        origin = self.headers.get("Origin")
+        return origin is None or origin == "http://" + (self.headers.get("Host") or "")
+
     # ---------- routing ----------
+    def do_PUT(self):
+        if not self._host_ok() or not self._same_origin():
+            return self._json(403, {"error": "forbidden"})
+        if urlsplit(self.path).path != "/api/portfolio":
+            return self._json(404, {"error": "not found"})
+        if self.headers.get("X-CreditScope") != "1" or (self.headers.get("Content-Type") or "").split(";")[0].strip() != "application/json":
+            return self._json(400, {"error": "missing required headers"})
+        try:
+            length = int(self.headers.get("Content-Length") or "-1")
+        except ValueError:
+            length = -1
+        if length < 0 or length > portfolio.MAX_BYTES:
+            return self._json(413, {"error": "body missing or larger than 1 MB"})
+        try:
+            body = json.loads(self.rfile.read(length))
+            obj, base = body["portfolio"], body["baseRevision"]
+            if not isinstance(base, str):
+                raise ValueError
+        except (ValueError, KeyError, TypeError):
+            return self._json(400, {"error": "body must be {baseRevision, portfolio}"})
+        try:
+            rev = portfolio.save(obj, base, self.server.portfolio_file)
+        except portfolio.Invalid as e:
+            return self._json(422, {"error": "invalid portfolio", "details": e.errors[:20]})
+        except portfolio.Conflict as e:
+            return self._json(409, {"error": str(e)})
+        except OSError:
+            return self._json(500, {"error": "could not write the portfolio file"})
+        self._json(200, {"revision": rev})
+
     def do_GET(self):
         if not self._host_ok():
             return self._json(403, {"error": "forbidden host"})
+        if urlsplit(self.path).path == "/api/portfolio":
+            if not self._same_origin():
+                return self._json(403, {"error": "forbidden"})
+            try:
+                obj, rev = portfolio.load(self.server.portfolio_file)
+            except portfolio.Invalid as e:
+                return self._json(422, {"error": "invalid portfolio file", "details": e.errors})
+            return self._json(200, {"portfolio": obj, "revision": rev})
         path = unquote(urlsplit(self.path).path)
         if path == "/":
             path = "/index.html"
@@ -91,7 +136,7 @@ class Handler(BaseHTTPRequestHandler):
             body = resolved.read_bytes()
         except (OSError, ValueError):
             return self._json(404, {"error": "not found"}, private=private)
-        if not private and resolved.name == "explorer.html":
+        if not private and resolved.name in ("explorer.html", "portfolio.html"):
             # marks the page so it looks for private data; the public site and plain static servers never carry this marker
             body = body.replace(b"<head>", b'<head>\n<meta name="creditscope-personal" content="1">', 1)
         ctype = mimetypes.guess_type(str(resolved))[0] or "application/octet-stream"
@@ -130,12 +175,13 @@ class PersonalServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, host: str, port: int, site_root: Path, data_dir: Path,
-                 client_factory: Optional[Callable] = None, feed: Callable = lambda: "iex"):
+                 client_factory: Optional[Callable] = None, feed: Callable = lambda: "iex", portfolio_file: Optional[Path] = None):
         if host not in LOOPBACK:
             raise ValueError("the personal server only binds to loopback addresses (127.0.0.1 / localhost)")
         super().__init__((host, port), Handler)
         self.site_root, self.data_dir = Path(site_root), Path(data_dir)
         self.client_factory, self.feed = client_factory, feed
+        self.portfolio_file = Path(portfolio_file) if portfolio_file else portfolio.path()
 
 
 def serve_in_thread(server: PersonalServer) -> threading.Thread:

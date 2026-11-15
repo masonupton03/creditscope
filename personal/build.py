@@ -3,6 +3,7 @@
 Series: {symbol, name, type, exchange, currency, synthetic:false, dates, close, volume, dividends, feed}
   close      split-adjusted close (adjustment=split), NOT adjusted for dividends
   dividends  [[ex-date, cash per share on the SAME split-adjusted basis]] or null if unknown ([] = known, none paid)
+  splits     [[ex-date, ratio]] (forward 4-for-1 = 4); the portfolio dashboard uses them to convert historical share counts
 
 Dividend amounts from the corporate-actions endpoint are per-share amounts as declared at the time. Because the closes are
 split-adjusted backwards, each dividend is divided by the product of the split ratios that happen AFTER its ex-date
@@ -64,6 +65,7 @@ def make_series(symbol: str, bars: list, dividends: Optional[list], splits: list
         "exchange": meta.get("exchange", ""), "currency": "USD", "synthetic": False, "feed": meta.get("feed", ""),
         "dates": dates, "close": [rows[d][0] for d in dates], "volume": [rows[d][1] for d in dates],
         "dividends": None if dividends is None else adjusted_dividends(dividends, splits),
+        "splits": [list(x) for x in sorted({(sp["ex_date"], float(sp["ratio"])) for sp in splits if sp.get("ex_date") and sp.get("ratio")})] if splits is not None else None,
     }
 
 
@@ -73,6 +75,8 @@ def merge_series(old: dict, new: dict) -> dict:
     rows.update({d: (c, v) for d, c, v in zip(new["dates"], new["close"], new["volume"])})
     dates = sorted(rows)
     merged = dict(new)
+    if old.get("splits") is not None and new.get("splits") is not None:
+        merged["splits"] = [list(x) for x in sorted({tuple(x) for x in old["splits"] + new["splits"]})]
     merged.update({"dates": dates, "close": [rows[d][0] for d in dates], "volume": [rows[d][1] for d in dates]})
     if new["dividends"] is None or old["dividends"] is None:
         merged["dividends"] = new["dividends"] if new["dividends"] is not None else old["dividends"]
