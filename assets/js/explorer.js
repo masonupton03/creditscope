@@ -13,7 +13,8 @@
   const BENCH = 'SPY';
   const PERIODS = Finance.PERIODS;
   const state = { sym: null, period: '1Y', compare: true, mode: 'growth' };
-  let index = [], searchIdx = [], meta = {}, watchlist = [];
+  let index = [], searchIdx = [], meta = {}, watchlist = [], avail = null;
+  function showLinks() { if (avail && state.sym && $('xlinks')) XLinks.render($('xlinks'), state.sym, { price: true, fund: avail.fundSet.has(state.sym), fundSynthetic: avail.fundSynthetic }, 'explorer'); }
   const cache = new Map(); const charts = {};
   // localStorage can throw (private mode, blocked storage): fall back to an inert store
   const storage = (() => { try { return window.localStorage; } catch (e) { return { getItem() { return null; }, setItem() { throw new Error('no storage'); } }; } })();
@@ -176,10 +177,10 @@
       return;
     }
     const sym = state.sym; const e = entry(sym) || {};
-    box.innerHTML = '<div class="card"><p class="muted">Loading ' + E(sym) + '…</p></div>';
+    box.innerHTML = '<div class="card">' + CS.loadingHtml('Loading ' + sym + '…') + '</div>';
     let ser, spy = null;
     try { ser = await loadSeries(sym); if (sym !== BENCH) spy = await loadSeries(BENCH); }
-    catch (err) { box.innerHTML = '<div class="card"><div class="banner error"><span><b>Could not load ' + E(sym) + '.</b> ' + E(err.message) + '</span></div></div>'; return; }
+    catch (err) { box.innerHTML = '<div class="card">' + CS.errorHtml('Could not load ' + sym + '.', err.message, true) + '</div>'; box.querySelector('[data-retry]').addEventListener('click', () => render()); return; }
     if (state.sym !== sym) return;                                  // a newer choice arrived meanwhile
     const isBench = sym === BENCH;
     const sum = Finance.summarize(ser, state.period, isBench ? null : spy);
@@ -198,6 +199,7 @@
       (personal ? '<span class="chip" title="Real data for your private use only">private</span>' : '') +
       (personal && ser.feed === 'iex' ? '<span class="chip" title="IEX feed: prices from IEX trades, volume is IEX-only">IEX feed</span>' : '') +
       '<button class="btn small ex-star" id="star" type="button" aria-pressed="false"></button></div></div>' +
+      '<div class="xlinks" id="xlinks" hidden></div>' +
       '<div class="ex-controls"><div class="seg" role="group" aria-label="Period">' + PERIODS.map(p => '<button type="button" data-p="' + p + '" aria-pressed="' + (p === state.period) + '">' + p + '</button>').join('') + '</div>' +
       (hasCompare ? '<label class="check"><input type="checkbox" id="cmp"' + (state.compare ? ' checked' : '') + '> Compare with ' + BENCH + '</label>' : '') +
       (!(hasCompare && state.compare) ? '<div class="seg" role="group" aria-label="Chart type"><button type="button" data-m="growth" aria-pressed="' + (state.mode === 'growth') + '">Growth of 100</button><button type="button" data-m="price" aria-pressed="' + (state.mode === 'price') + '">Price</button></div>' : '') +
@@ -208,7 +210,7 @@
       '<div class="card"><h3>Drawdown from the running peak</h3><p class="cap" style="margin-bottom:6px">Same basis as the return above (' + (sum.basis === 'total' ? 'total' : 'price') + ' return).</p><div class="chart-box mini"><canvas id="chDD" role="img" aria-label="Drawdown chart"></canvas></div></div>' +
       (ser.volume ? '<div class="card"><h3>Daily volume</h3><p class="cap" style="margin-bottom:6px">Shares traded, unadjusted.</p><div class="chart-box mini"><canvas id="chVol" role="img" aria-label="Volume chart"></canvas></div></div>' : '') + '</div>';
     updateStar();
-    drawCharts(ser, sum, isBench, spy);
+    drawCharts(ser, sum, isBench, spy); showLinks();
     renderWatch();
     $('star').addEventListener('click', () => saveWatch(ExplorerSearch.watch.has(watchlist, sym) ? ExplorerSearch.watch.remove(watchlist, sym) : ExplorerSearch.watch.add(watchlist, sym)));
     box.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { state.period = b.dataset.p; syncHash(); render(); }));
@@ -255,6 +257,7 @@
     parseHash(); bindSearch(); bindWatch();
     window.addEventListener('cs-theme', () => { if (state.sym) render(); });
     window.addEventListener('hashchange', () => { parseHash(); render(); });
+    XLinks.availability(personal).then(a => { avail = a; showLinks(); });
     await render(); renderWatch(); CS.doneLoading();
   }
   start();

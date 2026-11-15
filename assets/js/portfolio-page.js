@@ -11,7 +11,19 @@
   const PERSONAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !!document.querySelector('meta[name="creditscope-personal"]');
   const state = { period: 'ITD', mode: 'auto', view: 'real', pf: null, rev: 'new', series: {}, failed: {}, result: null, meta: {} };
   const priv = () => PERSONAL && state.view !== 'sample';      // true while real (private) holdings are on screen
-  const masked = () => state.view === 'mask';
+  const hidden = () => state.view === 'hide';                  // hide tickers, names, shares and dollars
+  const masked = () => state.view === 'mask' || hidden();      // hide shares and dollars
+  const editable = () => priv() && !hidden();
+  let alias = {}, names = [];
+  const lab = sym => (hidden() && alias[sym] ? alias[sym] : sym);                       // ticker shown on screen
+  const clean = text => (hidden() ? Redact.clean(text, alias, names) : String(text == null ? '' : text));
+  function buildAlias(r) {
+    const syms = (r && r.holdings ? r.holdings.map(h => h.symbol) : []);
+    (state.pf.transactions || []).forEach(t => { if (t.symbol) syms.push(t.symbol); });
+    syms.push.apply(syms, Object.keys(state.series));
+    alias = Redact.aliasMap(syms.filter((x, i) => syms.indexOf(x) === i && x !== (state.pf.benchmark || 'SPY')));
+    names = Object.keys(state.series).map(k => state.series[k] && state.series[k].name).filter(Boolean).filter(n => hidden());
+  }
   const charts = {};
 
   /* ---------- data ---------- */
@@ -74,7 +86,7 @@
   function renderPerf(r) {
     const p = r.perf[state.period];
     $('periods').innerHTML = Portfolio.PERIODS.map(k => '<button type="button" data-p="' + k + '" aria-pressed="' + (k === state.period) + '">' + (k === 'ITD' ? 'Since start' : k) + '</button>').join('');
-    const notes = r.warnings.filter(w => w.code !== 'TX_BEFORE_START').map(w => '<div class="banner warn"><span>' + (WARN_TEXT[w.code] || (x => E(x.message)))(w) + '</span></div>');
+    const notes = r.warnings.filter(w => w.code !== 'TX_BEFORE_START').map(w => '<div class="banner warn"><span>' + (WARN_TEXT[w.code] || (x => E(x.message)))(Object.assign({}, w, { message: clean(w.message) })) + '</span></div>');
     if (p && p.truncated) notes.push('<div class="banner warn"><span>Your history is shorter than ' + state.period + ': showing from <b>' + CS.date(p.startDate) + '</b>.</span></div>');
     $('notes').innerHTML = notes.join('');
     if (!p || p.twr === undefined) { $('recon').innerHTML = ''; $('perfTiles').innerHTML = '<p class="cap">Not enough history for this period.</p>'; return; }
@@ -105,20 +117,22 @@
     $('chGrowthC').textContent = r.basisLabel + '. Deposits and withdrawals are removed, so this line shows investment performance only.';
     mkChart('chGrowth', { type: 'line', data: { labels, datasets: [lineDs('Portfolio', c.twr, '--accent'), lineDs(r.benchmark, c.bench, '--stock')] },
       options: Object.assign(common(), { scales: { x: xAxis(), y: yAxis('Growth of 100') }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + CS.num(x.parsed.y, 2) }) } }) });
-    mkChart('chValue', { type: 'line', data: { labels, datasets: [lineDs('Account value', c.value, '--accent'), lineDs('Net contributions', c.netContributions, '--flat', { borderDash: [6, 4], stepped: true })] },
+    if (masked()) { if (charts.chValue) { charts.chValue.destroy(); delete charts.chValue; } }          // dollar series are never even built while amounts are hidden
+    else mkChart('chValue', { type: 'line', data: { labels, datasets: [lineDs('Account value', c.value, '--accent'), lineDs('Net contributions', c.netContributions, '--flat', { borderDash: [6, 4], stepped: true })] },
       options: Object.assign(common(), { scales: { x: xAxis(), y: yAxis('USD') }, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: tip({ label: x => ' ' + x.dataset.label + ': ' + money(x.parsed.y) }) } }) });
     mkChart('chDD', { type: 'line', data: { labels, datasets: [lineDs('Drawdown', c.drawdown, '--down', { fill: true, backgroundColor: color('--down-soft'), borderWidth: 1.5 })] },
       options: Object.assign(common(), { scales: { x: xAxis(), y: yAxis('%') }, plugins: { legend: { display: false }, tooltip: tip({ label: x => ' ' + CS.num(x.parsed.y, 2) + '%' }) } }) });
     const a = r.allocation.bySecurity.filter(x => x.value > 0);
-    mkChart('chAlloc', { type: 'doughnut', data: { labels: a.map(x => x.label), datasets: [{ data: a.map(x => x.value), backgroundColor: a.map((_, i) => slice(i)), borderColor: color('--surface'), borderWidth: 2 }] },
-      options: { responsive: true, maintainAspectRatio: false, cutout: '58%', animation: false, plugins: { legend: { display: false }, tooltip: tip({ label: x => ' ' + x.label + ': ' + money(x.parsed) + ' (' + CS.num(x.parsed / r.totals.totalValue * 100, 1) + '%)' }) } } });
-    $('allocLegend').innerHTML = a.map((x, i) => '<li><i style="background:' + slice(i) + '"></i>' + E(x.label) + ' ' + CS.num(x.value / r.totals.totalValue * 100, 1) + '%</li>').join('');
+    const share = v => v / r.totals.totalValue * 100;                                 // percentages only: dollar values never reach the chart when amounts are hidden
+    mkChart('chAlloc', { type: 'doughnut', data: { labels: a.map(x => lab(x.label)), datasets: [{ data: a.map(x => (masked() ? share(x.value) : x.value)), backgroundColor: a.map((_, i) => slice(i)), borderColor: color('--surface'), borderWidth: 2 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '58%', animation: false, plugins: { legend: { display: false }, tooltip: tip({ label: x => ' ' + x.label + ': ' + (masked() ? '' : money(x.parsed) + ' (') + CS.num(masked() ? x.parsed : share(x.parsed), 1) + '%' + (masked() ? '' : ')') }) } } });
+    $('allocLegend').innerHTML = a.map((x, i) => '<li><i style="background:' + slice(i) + '"></i>' + E(lab(x.label)) + ' ' + CS.num(x.value / r.totals.totalValue * 100, 1) + '%</li>').join('');
   }
 
   function renderConcentration(r) {
     const c = r.concentration;
     $('conc').innerHTML = [
-      tile('Largest holding', plain(c.top1), E(c.largest || '—') + ' as a share of invested assets'),
+      tile('Largest holding', plain(c.top1), E(lab(c.largest || '—')) + ' as a share of invested assets'),
       tile('Top 3 / top 5', plain(c.top3, 0) + ' / ' + plain(c.top5, 0), 'Share of invested assets'),
       tile('Herfindahl index', c.hhi ? CS.num(c.hhi, 3) : '—', '0 to 1; the sum of squared weights. Higher is more concentrated'),
       tile('Effective holdings', c.effectiveN ? CS.num(c.effectiveN, 1) : '—', 'Equal-sized positions with the same concentration (of ' + c.positions + ' held)')
@@ -127,7 +141,7 @@
 
   function renderHoldings(r) {
     $('holdCap').textContent = r.holdings.length + ' position' + (r.holdings.length === 1 ? '' : 's') + ' · cost basis uses first-in first-out lots including buy fees · share counts are adjusted for splits';
-    $('holdBody').innerHTML = r.holdings.map(h => '<tr><td><span class="tk">' + E(h.symbol) + '</span><br><span class="nm">' + E(h.name) + '</span></td>' +
+    $('holdBody').innerHTML = r.holdings.map(h => '<tr><td><span class="tk">' + E(lab(h.symbol)) + '</span><br><span class="nm">' + (hidden() ? '' : E(h.name)) + '</span></td>' +
       '<td class="r">' + shares(h.shares) + '</td><td class="r">' + money(h.avgCost) + '</td><td class="r">' + money(h.price) + '<br><small class="nm">' + (h.priceDate ? CS.date(h.priceDate) : '') + '</small></td>' +
       '<td class="r">' + money(h.marketValue) + '</td><td class="r">' + plain(h.weight) + '</td>' +
       '<td class="r ' + dir(h.unrealized) + '">' + smoney(h.unrealized) + '<br><small>' + pct(h.unrealizedPct) + '</small></td>' +
@@ -143,15 +157,15 @@
     const txs = state.pf.transactions.map((t, i) => Object.assign({ i }, t)).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.i - a.i));
     $('txCap').textContent = priv() ? 'Stored privately in a file on this computer, outside the code repository. Nothing is sent anywhere and no brokerage is connected. Each transaction keeps the date you entered; “Applied on” is the trading day the calculations use.'
       : 'Simulated demonstration data, read-only. Entering your own holdings is possible only in the private personal edition running on your computer.';
-    $('txForm').hidden = !priv();
+    $('txForm').hidden = !editable();
     const applied = e => !e ? '' : e.status === 'same_day' ? '<span class="nm">same day</span>' : e.status === 'next_trading_day' ? CS.date(e.effectiveDate) + '<br><small class="nm">next trading day</small>'
       : e.status === 'before_start' ? CS.date(e.effectiveDate) + '<br><small class="nm">first price date</small>' : '<small class="nm">not applied: after the last price</small>';
-    $('txBody').innerHTML = txs.map(t => '<tr><td>' + weekday(t.date) + ' ' + CS.date(t.date) + '</td><td>' + applied(by[t.i]) + '</td><td>' + E(t.type) + (t.external ? ' <small class="nm">(outside-funded)</small>' : '') + (t.reinvest ? ' <small class="nm">(reinvested)</small>' : '') + '</td><td class="tk">' + E(t.symbol || '') + '</td>' +
+    $('txBody').innerHTML = txs.map(t => '<tr><td>' + weekday(t.date) + ' ' + CS.date(t.date) + '</td><td>' + applied(by[t.i]) + '</td><td>' + E(t.type) + (t.external ? ' <small class="nm">(outside-funded)</small>' : '') + (t.reinvest ? ' <small class="nm">(reinvested)</small>' : '') + '</td><td class="tk">' + E(lab(t.symbol || '')) + '</td>' +
       '<td class="r">' + (t.shares != null ? shares(t.shares) : '') + '</td><td class="r">' + (t.price != null ? money(t.price) : '') + '</td>' +
       '<td class="r">' + (t.amount != null ? money(t.amount) : t.shares != null ? money(t.shares * t.price + (t.type === 'buy' ? 1 : -1) * (t.fee || 0)) : '') + '</td>' +
-      '<td class="r">' + (priv() ? '<button class="rm" type="button" data-i="' + t.i + '" aria-label="Delete this transaction">Delete</button>' : '') + '</td></tr>').join('');
+      '<td class="r">' + (editable() ? '<button class="rm" type="button" data-i="' + t.i + '" aria-label="Delete this transaction">Delete</button>' : '') + '</td></tr>').join('');
     const sug = r && r.dividendSuggestions || [];
-    $('divBar').hidden = !(priv() && sug.length);
+    $('divBar').hidden = !(editable() && sug.length);
     if (sug.length) {
       $('divBtn').textContent = 'Record ' + sug.length + ' dividend' + (sug.length === 1 ? '' : 's') + ' from market data as transactions';
       $('divCap').textContent = 'Total ' + money(sug.reduce((a, d) => a + d.amount, 0)) + ' for shares you held on the ex-dates. Once recorded they become your own entries (you can then reinvest them); automatic crediting stops for those securities.';
@@ -160,13 +174,14 @@
 
   function renderAll() {
     const r = state.result;
+    buildAlias(r && !(r.errors && r.errors.length) ? r : null);
     $('app').hidden = false;
     renderTransactions();
     const hasData = r && !(r.errors && r.errors.length);
     if (!hasData) {
       const e = (r && r.errors && r.errors[0]) || { code: 'NONE', message: 'no data' };
       const empty = e.code === 'EMPTY' || !state.pf.transactions.length;
-      $('summary').innerHTML = '<div class="ex-empty" style="grid-column:1/-1"><h2>' + (empty ? 'No transactions yet' : 'This ledger cannot be analysed yet') + '</h2><p>' + E(empty ? (PERSONAL ? 'Add a deposit and a buy below, or an existing position marked “funded from outside”.' : 'Nothing to show.') : e.message) + '</p></div>';
+      $('summary').innerHTML = '<div class="ex-empty" style="grid-column:1/-1"><h2>' + (empty ? 'No transactions yet' : 'This ledger cannot be analysed yet') + '</h2><p>' + E(empty ? (PERSONAL ? 'Add a deposit and a buy below, or an existing position marked “funded from outside”.' : 'Nothing to show.') : clean(e.message)) + '</p></div>';
       ['recon', 'perfTiles', 'conc', 'holdBody', 'allocLegend', 'notes', 'periods'].forEach(id => { $(id).innerHTML = ''; });
       Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
       $('asOf').textContent = ''; $('holdCap').textContent = '';
@@ -250,7 +265,7 @@
     const q = new URLSearchParams(location.hash.slice(1).replace(/^(\w+)$/, 'p=$1'));
     if (Portfolio.PERIODS.indexOf(q.get('p')) >= 0) state.period = q.get('p');
     if (Portfolio.MODES.indexOf(q.get('mode')) >= 0) state.mode = q.get('mode');
-    if (['real', 'mask', 'sample'].indexOf(q.get('view')) >= 0 && PERSONAL) state.view = q.get('view');
+    if (['real', 'mask', 'hide', 'sample'].indexOf(q.get('view')) >= 0 && PERSONAL) state.view = q.get('view');
   }
   function syncHash() {
     const q = new URLSearchParams(); q.set('p', state.period);
@@ -275,7 +290,9 @@
         try { state.meta = (await getJSON('private-data/index.json')).meta || {}; } catch (e) { state.meta = {}; }
         const f = String(state.meta.feed || '').toLowerCase();
         $('privateBanner').hidden = false;
-        $('privateBanner').firstElementChild.innerHTML = masked()
+        $('privateBanner').firstElementChild.innerHTML = hidden()
+          ? '<b>Tickers, company names, share counts and dollar amounts are hidden.</b> Securities appear as “Holding A, B, …” and risk statistics are unchanged. Percentages, weights, transaction dates and per-holding returns are still real, so this is safer for screenshots but is <b>not anonymous</b>.'
+          : masked()
           ? '<b>Dollar amounts and share counts are hidden.</b> Percentages, symbols and weights are still real, so this is safer for screenshots but is <b>not anonymous</b>. Use “Show the simulated sample instead” to hide holdings entirely.'
           : '<b>Private: real holdings, local only.</b> Your ledger is stored outside the code repository and served to this computer only; it is never published, cached offline or put in browser storage. Do not screenshot or screen-share this page; use the View menu for a safe version.';
         if (f === 'iex' || !f) $('privateBanner').firstElementChild.innerHTML += ' <b>Prices come from the IEX feed (one exchange).</b> Trade-price returns track the market closely, but <b>volume is not shown here</b>: IEX volume is a small fraction of consolidated market volume.';
@@ -285,7 +302,7 @@
         $('synthBanner').hidden = false;
       }
     } catch (e) {
-      CS.banner('dataBanner', 'error', '<span><b>Could not load the portfolio.</b> ' + E(e.message) + (PERSONAL ? ' Run <code>python3 -m personal serve</code> again, and check <code>~/.creditscope/portfolio.json</code>.' : '') + '</span>');
+      CS.banner('dataBanner', 'error', '<span><b>Could not load the portfolio.</b> ' + E(clean(e.message)) + (PERSONAL ? ' Run <code>python3 -m personal serve</code> again, and check <code>~/.creditscope/portfolio.json</code>.' : '') + '</span>');
       CS.doneLoading(); return;
     }
     state.result = await analyzeNow();

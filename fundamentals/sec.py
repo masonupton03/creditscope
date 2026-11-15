@@ -17,6 +17,7 @@ import urllib.request
 ENV = "SEC_USER_AGENT"
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
+CONCEPT_URL = "https://data.sec.gov/api/xbrl/companyconcept/CIK{cik:010d}/{taxonomy}/{tag}.json"
 MIN_INTERVAL = 0.2                                              # at most 5 requests per second (the SEC's limit is 10)
 
 
@@ -34,10 +35,10 @@ def user_agent_from_env(env=None) -> str:
 
 
 class SecClient:
-    def __init__(self, user_agent: str, tickers_url: str = TICKERS_URL, facts_url: str = FACTS_URL, sleep=time.sleep,
+    def __init__(self, user_agent: str, tickers_url: str = TICKERS_URL, facts_url: str = FACTS_URL, concept_url: str = CONCEPT_URL, sleep=time.sleep,
                  min_interval: float = MIN_INTERVAL, retries: int = 3):
         self._ua = user_agent
-        self.tickers_url, self.facts_url = tickers_url, facts_url
+        self.tickers_url, self.facts_url, self.concept_url = tickers_url, facts_url, concept_url
         self._sleep, self._interval, self._retries = sleep, min_interval, retries
         self._last = 0.0
         self.requests = 0
@@ -86,3 +87,7 @@ class SecClient:
 
     def company_facts(self, cik: int):
         return self._get(self.facts_url.format(cik=cik))
+
+    def company_concept(self, cik: int, tag: str, taxonomy: str = "us-gaap"):
+        """One concept for one company from a different SEC endpoint than company_facts (used to cross-check the build)."""
+        return self._get(self.concept_url.format(cik=cik, taxonomy=taxonomy, tag=tag))

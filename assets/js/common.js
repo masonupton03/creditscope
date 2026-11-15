@@ -77,6 +77,12 @@
     const [h, s] = await Promise.all([getText('data/history.csv'), getText('data/status.json')]);
     return { rows: Stats.parseHistory(h.text), status: JSON.parse(s.text), stale: h.stale || s.stale };
   };
+  CS.loadingHtml = label => {
+    setTimeout(() => document.querySelectorAll('.inline-loading .slow').forEach(e => { e.hidden = false; }), 8000);
+    return '<div class="inline-loading" role="status"><div class="spinner" aria-hidden="true"></div><span>' + CS.esc(label) + '</span><span class="slow" hidden> Still working: check your connection.</span></div>';
+  };
+  CS.errorHtml = (title, detail, retry) => '<div class="banner error err-box" role="alert"><span><b>' + CS.esc(title) + '</b> ' + CS.esc(detail) +
+    (navigator.onLine === false ? ' You appear to be offline; pages you have visited before still open from the saved copy.' : '') + '</span>' + (retry ? '<button class="btn small" type="button" data-retry>Try again</button>' : '') + '</div>';
   CS.doneLoading = () => { const l = document.getElementById('loading'); if (l) { l.classList.add('done'); setTimeout(() => l.remove(), 500); } };
   CS.banner = (id, kind, html) => {
     const el = document.getElementById(id);

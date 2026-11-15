@@ -5,7 +5,7 @@
   const $ = id => document.getElementById(id);
   const E = CS.esc;
   const REAL = 'explorer/sec/', SAMPLE = 'explorer/sec-sample/';
-  let root = REAL, synthetic = false, index = [], picker = null, current = null;
+  let root = REAL, synthetic = false, index = [], picker = null, current = null, avail = null;
   const charts = {};
 
   async function getJSON(url) {
@@ -103,9 +103,16 @@
     if (c.synthetic) notes.push('<div class="banner synth"><span><b>Simulated company.</b> Fictional, generated numbers (not SEC data).</span></div>');
     if (fr.stale && !c.synthetic) notes.push('<div class="banner warn"><span><b>This may be out of date.</b> The latest annual report here was filed ' + fdate(fr.latestFiled) + ' (' + CS.int(fr.daysSinceFiled / 30.4) + ' months before today); a newer one may exist.</span></div>');
     a.warnings.forEach(w => notes.push('<div class="banner warn"><span>' + E(w.message) + '</span></div>'));
+    const cov = c.coverage || { found: {}, missing: [] }, checks = c.checks || [];
+    const label = k => (c.metrics[k] ? c.metrics[k].label : k);
+    const audit = '<details class="box" id="audit"><summary>Data checks and coverage' + (checks.length ? ' <span class="chip">' + checks.length + ' flagged</span>' : ' <span class="chip ok">no flags</span>') + '</summary>' +
+      (checks.length ? '<h3>Flagged for a second look (numbers are shown as filed, never altered)</h3><ul>' + checks.map(x => '<li>' + E(x.message) + '</li>').join('') + '</ul>' : '<p class="cap">Automatic checks (balance sheet identity, gross profit arithmetic, filing dates, large revenue jumps) found nothing to flag.</p>') +
+      '<h3>What was found</h3><ul>' + Object.keys(cov.found).map(k => '<li><b>' + E(label(k)) + '</b>: ' + cov.found[k].years + ' fiscal year' + (cov.found[k].years === 1 ? '' : 's') + ' from <code>' + cov.found[k].tags.map(E).join('</code>, <code>') + '</code></li>').join('') + '</ul>' +
+      (cov.missing.length ? '<h3>Not reported under the standard tags (left blank, never estimated)</h3><ul>' + cov.missing.map(k => '<li>' + E(k in c.metrics ? label(k) : ({ revenue: 'Revenue', costOfRevenue: 'Cost of revenue', grossProfit: 'Gross profit', operatingIncome: 'Operating income', netIncome: 'Net income', epsDiluted: 'Diluted EPS', operatingCashFlow: 'Operating cash flow', capex: 'Capital expenditure', assets: 'Total assets', liabilities: 'Total liabilities', equity: "Shareholders' equity", cash: 'Cash and equivalents', debt: 'Debt' }[k] || k)) + '</li>').join('') + '</ul>' : '') + '</details>';
     const cikLink = c.synthetic ? '' : ' · <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=' + c.cik + '&type=10-K" target="_blank" rel="noopener">All SEC filings</a>';
     $('detail').innerHTML =
       '<div class="ex-head"><h2><span class="tk">' + E(c.ticker) + '</span><span class="nm">' + E(c.name) + '</span></h2></div>' +
+      '<div class="xlinks" id="xlinks" hidden></div>' +
       '<p class="cap" id="fresh">Latest annual report: fiscal year ' + (L == null ? '—' : L) + ', period ended <b>' + fdate(c.latestPeriodEnd) + '</b>, filed <b>' + fdate(c.latestFiled) + '</b> · data compiled ' + fdate((c.generated || '').slice(0, 10)) + ' · amounts in <b>USD ' + sc.name + '</b> except per-share · source: ' + E(c.source) + cikLink + '</p>' +
       '<div class="notes">' + notes.join('') + '</div>' +
       '<div class="metrics">' +
@@ -123,8 +130,10 @@
         '<div class="card"><h3>Balance sheet</h3><p class="cap">Year-end assets, liabilities, debt and cash.</p><div class="chart-box short"><canvas id="chBal" role="img" aria-label="Balance sheet items by fiscal year"></canvas></div></div>' +
         '<div class="card"><h3>Cash flow</h3><p class="cap">Operating cash flow, capital expenditure and free cash flow.</p><div class="chart-box short"><canvas id="chCash" role="img" aria-label="Cash flow by fiscal year"></canvas></div></div>' +
       '</div>' +
+      audit +
       '<div class="card"><h2>Annual figures</h2><p class="cap">' + (c.synthetic ? 'Simulated figures (no filing links).' : 'Each reported figure links to the SEC filing it came from (hover for form, filing date, tag and period).') + ' Blank means not reported or not meaningful. * = derived.</p><div class="table-wrap">' + table(c, a, sc) + '</div></div>';
     drawCharts(c, a, sc);
+    if (avail) XLinks.render($('xlinks'), c.ticker, { price: avail.priceSet.has(c.ticker), fund: true, fundSynthetic: avail.fundSynthetic }, 'fundamentals');
     document.title = 'CreditScope · ' + c.ticker + ' fundamentals';
   }
 
@@ -134,10 +143,10 @@
       $('detail').innerHTML = '<div class="card ex-empty"><h2>Pick a company to begin</h2><p>Search above. You will see revenue, profit, margins, balance sheet and cash flow by fiscal year, with links to the SEC filings.</p></div>';
       return;
     }
-    if (!index.some(e => e.s === sym)) { $('detail').innerHTML = '<div class="card ex-empty"><h2>No data for ' + E(sym) + '</h2><p>This company is not in the current data set.</p></div>'; return; }
-    $('detail').innerHTML = '<div class="card"><p class="muted">Loading ' + E(sym) + '…</p></div>';
+    if (!index.some(e => e.s === sym)) { $('detail').innerHTML = '<div class="card ex-empty"><h2>No fundamentals for ' + E(sym) + '</h2><p>This ticker is not in the ' + (synthetic ? 'demonstration' : 'current') + ' data set' + (synthetic ? ', which contains only four fictional companies' : '') + '. Search above for one that is.</p>' + (avail && avail.priceSet.has(sym) ? '<p><a href="explorer.html#' + E(sym) + '">See its price history in the Explorer</a></p>' : '') + '</div>'; return; }
+    $('detail').innerHTML = '<div class="card">' + CS.loadingHtml('Loading ' + sym + ' from the data set…') + '</div>';
     try { current = await getJSON(root + 'company/' + encodeURIComponent(sym) + '.json'); render(current); }
-    catch (e) { $('detail').innerHTML = '<div class="banner error"><span><b>Could not load ' + E(sym) + '.</b> ' + E(e.message) + '</span></div>'; }
+    catch (e) { $('detail').innerHTML = CS.errorHtml('Could not load ' + sym + '.', e.message, true); $('detail').querySelector('[data-retry]').addEventListener('click', show); }
   }
 
   async function start() {
@@ -150,6 +159,7 @@
     if (synthetic) $('synthBanner').hidden = false;
     $('heroLead').textContent = 'Search ' + CS.int(index.length) + ' ' + (synthetic ? 'simulated' : 'public') + ' companies and see revenue, profit, margins, assets, debt and cash flow from annual reports' + (synthetic ? '.' : ', with every reported figure linked to the SEC filing it came from.');
     bindSearch();
+    XLinks.availability(false).then(a => { avail = a; if (current) XLinks.render($('xlinks'), current.ticker, { price: a.priceSet.has(current.ticker), fund: true, fundSynthetic: a.fundSynthetic }, 'fundamentals'); });
     window.addEventListener('hashchange', show);
     $('themeBtn').addEventListener('click', () => setTimeout(() => current && render(current), 30));
     await show();

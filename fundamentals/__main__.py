@@ -68,12 +68,35 @@ def build(client: SecClient, tickers: list, out: Path, log=print) -> dict:
     return {"written": [c["ticker"] for c in done], "skipped": skipped}
 
 
+def run_verify(args, ua, client=None) -> int:
+    from . import verify as V
+    t = args.ticker.upper()
+    f = args.out / "company" / f"{t}.json"
+    if not SYMBOL.match(t) or not f.exists():
+        print(f"no built file for {t} in {args.out} (run the build first)", file=sys.stderr)
+        return 2
+    company = json.loads(f.read_text())
+    try:
+        res = V.cross_check(client or SecClient(ua), company, args.years)
+    except SecError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    if args.sheet:
+        args.sheet.write_text(V.sheet(company, args.years))
+    print(f"{t}: {res['ok']} figures re-confirmed through the concept endpoint, {len(res['mismatches'])} mismatches, {len(res['skipped'])} composite figures to check by hand.")
+    for m in res["mismatches"]:
+        print(f"  MISMATCH {m['metric']} FY{m['fy']} {m['tag']}: stored {m['stored']} vs {m['found']} ({m['why']})")
+    return 1 if res["mismatches"] else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m fundamentals")
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("build", help="fetch from the SEC (needs SEC_USER_AGENT)")
     b.add_argument("--tickers"); b.add_argument("--universe", type=Path, default=UNIVERSE); b.add_argument("--out", type=Path, default=ROOT / "explorer" / "sec")
     sub.add_parser("sample", help="rebuild the simulated demo set (no network)")
+    v = sub.add_parser("verify", help="cross-check a built company through another SEC endpoint and write a manual checklist (needs SEC_USER_AGENT)")
+    v.add_argument("ticker"); v.add_argument("--out", type=Path, default=ROOT / "explorer" / "sec"); v.add_argument("--years", type=int, default=3); v.add_argument("--sheet", type=Path)
     args = ap.parse_args(argv)
     if args.cmd == "sample":
         from . import sample
@@ -84,6 +107,8 @@ def main(argv=None) -> int:
     except SecError as e:
         print(str(e), file=sys.stderr)
         return 2
+    if args.cmd == "verify":
+        return run_verify(args, ua)
     tickers = [t.strip().upper() for t in args.tickers.split(",")] if args.tickers else read_universe(args.universe)
     bad = [t for t in tickers if not SYMBOL.match(t)]
     if bad:

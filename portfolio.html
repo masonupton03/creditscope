@@ -39,7 +39,7 @@
     <p class="lead">Holdings, cost basis and unrealized gains, allocation, and performance against SPY. Time-weighted return is kept separate from the change in account value, so deposits and withdrawals are never mistaken for gains.</p>
     <div class="banner" id="dataBanner" role="status" hidden></div>
     <div class="ex-controls" id="viewBar" hidden><label for="viewSel"><b>View</b></label>
-      <select id="viewSel" class="input" aria-describedby="viewHelp"><option value="real">My real portfolio</option><option value="mask">Hide dollar amounts and share counts</option><option value="sample">Show the simulated sample instead</option></select>
+      <select id="viewSel" class="input" aria-describedby="viewHelp"><option value="real">My real portfolio</option><option value="mask">Hide dollar amounts and share counts</option><option value="hide">Hide tickers, names, shares and dollar amounts</option><option value="sample">Show the simulated sample instead</option></select>
       <span class="cap" id="viewHelp">For screenshots and demos. Nothing is stored; reloading returns to the view in the address bar.</span></div>
     <div class="banner private" id="privateBanner" role="note" hidden><span></span></div>
     <div class="banner synth" id="synthBanner" role="note" hidden><span><b>Simulated demonstration.</b> This portfolio and every price in it are <b>made up</b> (a seeded model); they are not real holdings or real market prices. A private edition of this page runs only on the owner’s computer with real data and real holdings, which are never published.</span></div>
@@ -144,6 +144,7 @@
 <script src="assets/vendor/chart.umd.min.js"></script>
 <script src="assets/js/finance.js"></script>
 <script src="assets/js/portfolio.js"></script>
+<script src="assets/js/redact.js"></script>
 <script src="assets/js/stats.js"></script>
 <script src="assets/js/common.js"></script>
 <script src="assets/js/portfolio-page.js"></script>

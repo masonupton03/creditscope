@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 import ref_fundamentals as ref  # noqa: E402
-from fundamentals import __main__ as cli, concepts, reduce as R, sample, sec  # noqa: E402
+from fundamentals import __main__ as cli, concepts, reduce as R, sample, sec, verify as V  # noqa: E402
 
 NODE = subprocess.run(["which", "node"], capture_output=True, text=True).stdout.strip()
 
@@ -133,6 +133,7 @@ def test_sample_exercises_restatement_tag_switch_53_weeks_and_missing_metrics():
 class Mock:
     def __init__(self):
         self.seen, self.fail = [], {}
+        self.concepts = {}
         outer = self
         tickers = {"0": {"cik_str": 111, "ticker": "AAA", "title": "Alpha Inc"}, "1": {"cik_str": 222, "ticker": "BBB", "title": "Beta Corp"},
                    "2": {"cik_str": 333, "ticker": "CCC", "title": "Gamma Foreign"}}
@@ -151,6 +152,12 @@ class Mock:
                 elif self.path.endswith("CIK0000000111.json"):
                     body = gzip.compress(json.dumps(company({"Revenues": {"USD": [fact("2023-12-31", 100, start="2023-01-01")]}}, 111, "Alpha Inc.")).encode())
                     self.send_response(200); self.send_header("Content-Encoding", "gzip"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
+                elif "/companyconcept/CIK0000000111/us-gaap/" in self.path:
+                    tag = self.path.rsplit("/", 1)[1][:-5]
+                    rows = outer.concepts.get(tag)
+                    if rows is None:
+                        self.send_response(404); self.end_headers(); return
+                    body = json.dumps({"cik": 111, "tag": tag, "units": {"USD": rows}}).encode()
                 elif self.path.endswith("CIK0000000333.json"):
                     body = json.dumps({"cik": 333, "entityName": "Gamma", "facts": {"ifrs-full": {}}}).encode()
                 else:
@@ -162,7 +169,8 @@ class Mock:
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
 
     def client(self, ua="CreditScope educational project team@project.invalid", **kw):
-        return sec.SecClient(ua, tickers_url=self.base + "/tickers", facts_url=self.base + "/api/xbrl/companyfacts/CIK{cik:010d}.json", **kw)
+        return sec.SecClient(ua, tickers_url=self.base + "/tickers", facts_url=self.base + "/api/xbrl/companyfacts/CIK{cik:010d}.json",
+                              concept_url=self.base + "/api/xbrl/companyconcept/CIK{cik:010d}/{taxonomy}/{tag}.json", **kw)
 
     def stop(self):
         self.server.shutdown(); self.server.server_close()
@@ -281,3 +289,95 @@ def test_js_ratios_match_the_independent_reference():
                 a = js["ratios"][str(y)][k]
                 assert (a is None) == (v is None) and (a is None or a == v or abs(a - v) <= 1e-9 * max(1, abs(v))), (c.get("name"), y, k, a, v)
     assert any(js["warnings"] for js in out)
+
+
+# ---------------------------------------------------------------- non-standard filers, data checks, verification
+def shape(tags, cik=1, name="Shape Co"):
+    """Company facts built from (tag, unit, [(start_or_None, end, val, filed, accn)]) with invented numbers: structure tests only."""
+    out = {}
+    for tag, unit, rows in tags:
+        out.setdefault(tag, {})[unit] = [dict(end=e, val=v, form="10-K", filed=f, accn=a, **({"start": st} if st else {})) for st, e, v, f, a in rows]
+    return {"cik": cik, "entityName": name, "facts": {"us-gaap": {t: {"units": u} for t, u in out.items()}}}
+
+
+def test_fiscal_calendars_of_the_target_companies_are_labelled_the_way_the_companies_name_them():
+    # structure only (invented numbers): June, September, January and December year ends
+    cases = [("June", "2024-06-30", "2023-07-01", 2024), ("September", "2024-09-28", "2023-10-01", 2024),
+             ("January", "2025-01-31", "2024-02-01", 2025), ("December", "2024-12-31", "2024-01-01", 2024)]
+    for label, end, start, fy in cases:
+        c = R.reduce_company(shape([("Revenues", "USD", [(start, end, 100.0, "2025-02-01", "0000000001-25-000001")])]), "T")
+        assert pts(c)[0]["fy"] == fy, label
+
+
+def test_bank_shape_uses_net_revenue_and_cash_due_from_banks_and_never_invents_the_rest():
+    c = R.reduce_company(shape([
+        ("RevenuesNetOfInterestExpense", "USD", [("2023-01-01", "2023-12-31", 500.0, "2024-02-20", "0000000001-24-000001")]),
+        ("InterestAndDividendIncomeOperating", "USD", [("2023-01-01", "2023-12-31", 900.0, "2024-02-20", "0000000001-24-000001")]),   # gross interest income: must NOT be revenue
+        ("CashAndDueFromBanks", "USD", [(None, "2023-12-31", 40.0, "2024-02-20", "0000000001-24-000001")]),
+        ("Assets", "USD", [(None, "2023-12-31", 9000.0, "2024-02-20", "0000000001-24-000001")]),
+    ]), "BANK")
+    assert pts(c)[0]["val"] == 500.0 and pts(c)[0]["tag"] == "RevenuesNetOfInterestExpense"
+    assert pts(c, "cash")[0]["tag"] == "CashAndDueFromBanks"
+    assert "operatingIncome" not in c["metrics"] and "costOfRevenue" not in c["metrics"] and "grossProfit" not in c["metrics"]
+    assert {"operatingIncome", "grossProfit", "capex", "debt"} <= set(c["coverage"]["missing"])
+    assert c["coverage"]["found"]["revenue"] == {"years": 1, "tags": ["RevenuesNetOfInterestExpense"]}
+
+
+def test_commercial_paper_style_short_debt_is_not_silently_added_and_composite_debt_is_labelled():
+    c = R.reduce_company(shape([
+        ("LongTermDebtNoncurrent", "USD", [(None, "2023-09-30", 95.0, "2023-11-03", "0000000001-23-000106")]),
+        ("LongTermDebtCurrent", "USD", [(None, "2023-09-30", 9.0, "2023-11-03", "0000000001-23-000106")]),
+        ("CommercialPaper", "USD", [(None, "2023-09-30", 6.0, "2023-11-03", "0000000001-23-000106")]),
+    ]), "T")
+    assert pts(c, "debt")[0]["val"] == 104.0 and pts(c, "debt")[0]["tag"] == "LongTermDebtNoncurrent+LongTermDebtCurrent"
+
+
+def test_quality_checks_flag_without_changing_numbers():
+    rows = lambda tag, vals: (tag, "USD", [((f"{y}-01-01" if tag in ("Revenues", "CostOfRevenue", "GrossProfit") else None), f"{y}-12-31", v, f"{y + 1}-02-01" if ok else f"{y}-06-01", f"0000000001-{(y + 1) % 100:02d}-000001") for y, v, ok in vals])
+    c = R.reduce_company(shape([
+        rows("Assets", [(2022, 1000.0, True), (2023, 1000.0, True)]), rows("Liabilities", [(2022, 600.0, True), (2023, 600.0, True)]), rows("StockholdersEquity", [(2022, 400.0, True), (2023, 300.0, True)]),
+        rows("Revenues", [(2022, 100.0, True), (2023, 400.0, True)]), rows("CostOfRevenue", [(2022, 60.0, True), (2023, 100.0, True)]), rows("GrossProfit", [(2022, 40.0, True), (2023, 250.0, False)]),
+    ]), "T")
+    codes = {(x["code"], x["fy"]) for x in c["checks"]}
+    assert ("BALANCE_IDENTITY", 2023) in codes and ("BALANCE_IDENTITY", 2022) not in codes            # 1000 vs 900
+    assert ("GROSS_PROFIT_MISMATCH", 2023) in codes and ("LARGE_REVENUE_CHANGE", 2023) in codes
+    assert ("FILED_BEFORE_PERIOD_END", 2023) in codes
+    assert [p["val"] for p in pts(c, "grossProfit")] == [40.0, 250.0]                                  # flagged, not altered
+
+
+def test_clean_data_has_no_checks_and_empty_coverage_gaps():
+    assert json.loads((ROOT / "explorer/sec-sample/company/DEMB.json").read_text())["checks"] == []
+
+
+def test_cross_check_confirms_matches_and_catches_a_wrong_value_or_missing_fact(mock):
+    comp = R.reduce_company(company({"Revenues": {"USD": [fact("2023-12-31", 100, start="2023-01-01", accn="0000000111-24-000001"),
+                                                          fact("2022-12-31", 90, start="2022-01-01", accn="0000000111-23-000001", filed="2023-02-01")]}}, 111), "AAA")
+    row = lambda v, end, start, accn: {"end": end, "start": start, "val": v, "accn": accn, "form": "10-K", "filed": "2024-02-01"}
+    mock.concepts["Revenues"] = [row(100, "2023-12-31", "2023-01-01", "0000000111-24-000001"), row(90, "2022-12-31", "2022-01-01", "0000000111-23-000001")]
+    assert V.cross_check(mock.client(sleep=lambda s: None), comp) == {"ok": 2, "mismatches": [], "skipped": []}
+    mock.concepts["Revenues"][0]["val"] = 101                                                          # the other endpoint disagrees
+    res = V.cross_check(mock.client(sleep=lambda s: None), comp)
+    assert res["ok"] == 1 and res["mismatches"][0]["why"] == "value differs" and res["mismatches"][0]["stored"] == 100
+    mock.concepts["Revenues"] = []
+    assert all(m["why"].startswith("no matching") for m in V.cross_check(mock.client(sleep=lambda s: None), comp)["mismatches"])
+
+
+def test_verification_sheet_links_every_figure_to_its_filing_and_lists_gaps():
+    c = json.loads((ROOT / "explorer/sec-sample/company/DEMC.json").read_text())
+    text = V.sheet(c, years=2)
+    assert text.count("| [ ] |") == sum(len(m["points"][-2:]) for m in c["metrics"].values())
+    assert "https://www.sec.gov/Archives/edgar/data/9000003/" in text and "-index.htm" in text and "capex" in text
+    assert V.filing_url(320193, "0000320193-24-000123").endswith("/000032019324000123/0000320193-24-000123-index.htm")
+
+
+def test_verify_command_needs_the_contact_and_a_built_file(monkeypatch, capsys, tmp_path, mock):
+    monkeypatch.delenv(sec.ENV, raising=False)
+    assert cli.main(["verify", "AAA", "--out", str(tmp_path)]) == 2
+    monkeypatch.setenv(sec.ENV, "CreditScope team@project.invalid")
+    assert cli.main(["verify", "AAA", "--out", str(tmp_path)]) == 2 and "run the build first" in capsys.readouterr().err
+    cli.build(mock.client(sleep=lambda s: None), ["AAA"], tmp_path, log=lambda m: None)
+    mock.concepts["Revenues"] = [{"end": "2023-12-31", "start": "2023-01-01", "val": 100, "accn": "0000000001-24-000001", "form": "10-K", "filed": "2024-02-01"}]
+    args = cli.argparse.Namespace(ticker="AAA", out=tmp_path, years=3, sheet=tmp_path / "sheet.md")
+    assert cli.run_verify(args, "CreditScope team@project.invalid", client=mock.client(sleep=lambda s: None)) == 0
+    assert (tmp_path / "sheet.md").read_text().startswith("# Verification sheet: AAA")
+    assert "team@project.invalid" not in capsys.readouterr().out + (tmp_path / "sheet.md").read_text()

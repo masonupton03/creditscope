@@ -4,12 +4,12 @@
  *  - Data files (data/history.csv, data/status.json): network first, so an online visit always gets
  *    the latest data; when offline the last copy that was loaded is served, marked X-CS-Cache: 1.
  */
-const VERSION = 'creditscope-v6';
+const VERSION = 'creditscope-v7';
 const SHELL = [
   './', 'index.html', 'browse.html', 'trends.html', 'explorer.html', 'portfolio.html', 'fundamentals.html', 'compare.html', 'platform.html', 'manifest.webmanifest',
   'assets/css/site.css', 'assets/css/explorer.css', 'assets/css/portfolio.css',
   'assets/js/common.js', 'assets/js/stats.js', 'assets/js/today.js', 'assets/js/browse.js', 'assets/js/trends.js',
-  'assets/js/finance.js', 'assets/js/search.js', 'assets/js/explorer.js', 'assets/js/portfolio.js', 'assets/js/portfolio-page.js', 'assets/js/picker.js', 'assets/js/fundamentals-calc.js', 'assets/js/fundamentals.js', 'assets/js/compare-calc.js', 'assets/js/compare.js', 'explorer/sample/index.json', 'explorer/sample/portfolio.json', 'explorer/sec/index.json', 'explorer/sec-sample/index.json',
+  'assets/js/finance.js', 'assets/js/search.js', 'assets/js/explorer.js', 'assets/js/portfolio.js', 'assets/js/redact.js', 'assets/js/portfolio-page.js', 'assets/js/picker.js', 'assets/js/xlinks.js', 'assets/js/fundamentals-calc.js', 'assets/js/fundamentals.js', 'assets/js/compare-calc.js', 'assets/js/compare.js', 'explorer/sample/index.json', 'explorer/sample/portfolio.json', 'explorer/sec/index.json', 'explorer/sec-sample/index.json',
   'assets/vendor/chart.umd.min.js',
   'assets/icons/icon.svg', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png',
   'assets/icons/icon-maskable-512.png', 'assets/icons/apple-touch-icon.png'

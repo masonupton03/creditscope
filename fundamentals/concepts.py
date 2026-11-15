@@ -6,7 +6,8 @@ The tag that supplied each number is stored with it, so every figure is traceabl
 METRICS = {
     "revenue":          {"label": "Revenue", "kind": "duration", "unit": "USD", "tags": [
         "Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "RevenueFromContractWithCustomerIncludingAssessedTax",
-        "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet"]},
+        "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet",
+        "RevenuesNetOfInterestExpense"]},                      # last: the total net revenue a bank reports; interest income alone is never used as revenue
     "costOfRevenue":    {"label": "Cost of revenue", "kind": "duration", "unit": "USD", "tags": [
         "CostOfRevenue", "CostOfGoodsAndServicesSold", "CostOfGoodsSold"]},
     "grossProfit":      {"label": "Gross profit", "kind": "duration", "unit": "USD", "tags": ["GrossProfit"]},
@@ -21,7 +22,8 @@ METRICS = {
     "equity":           {"label": "Shareholders' equity", "kind": "instant", "unit": "USD", "tags": [
         "StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"]},
     "cash":             {"label": "Cash and equivalents", "kind": "instant", "unit": "USD", "tags": [
-        "CashAndCashEquivalentsAtCarryingValue", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"]},
+        "CashAndCashEquivalentsAtCarryingValue", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+        "CashAndDueFromBanks"]},                               # banks; the tag is stored with each value so the meaning stays visible
 }
 # Debt is assembled from parts: LongTermDebt already includes the current portion; LongTermDebtNoncurrent does not.
 DEBT_TOTAL = ["LongTermDebt"]
@@ -31,3 +33,8 @@ DEBT_CURRENT = ["DebtCurrent", "LongTermDebtCurrent"]
 ANNUAL_FORMS = {"10-K", "10-K/A", "10-KT", "10-KT/A"}
 ANNUAL_DAYS = (350, 380)         # a fiscal year is 52 or 53 weeks or a calendar year
 MAX_YEARS = 12
+
+# Data checks (see reduce.quality_checks). They flag, never change, a number.
+IDENTITY_TOLERANCE = 0.02        # assets vs liabilities + equity (minority interest and redeemable equity can explain a gap)
+GROSS_PROFIT_TOLERANCE = 0.01
+JUMP_LIMIT = 0.8                 # a year-over-year revenue change larger than this is worth a second look

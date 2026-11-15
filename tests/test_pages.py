@@ -150,4 +150,4 @@ def test_service_worker_precaches_every_page_and_script_the_pages_use(pages):
         for a in p.assets:
             if a.startswith(("assets/", "explorer/")):
                 assert f"'{a}'" in shell, f"{a} (used by {n}) missing from the offline shell"
-    assert "creditscope-v6" in sw
+    assert "creditscope-v7" in sw

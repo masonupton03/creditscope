@@ -1,0 +1,7 @@
+{
+  "name": "creditscope-browser-audit",
+  "private": true,
+  "description": "Optional browser audits for CreditScope (not used by CI or by the site).",
+  "scripts": { "regression": "node regression.js http://127.0.0.1:8801/" },
+  "devDependencies": { "axe-core": "4.10.2", "playwright": "1.49.1" }
+}

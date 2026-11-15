@@ -92,6 +92,41 @@ def _debt(company: dict) -> dict:
     return out
 
 
+def quality_checks(metrics: dict) -> list:
+    """Flags for a human to look at. Nothing here changes or removes a value."""
+    by = {k: {p["fy"]: p for p in m["points"]} for k, m in metrics.items()}
+    out = []
+
+    def add(code, fy, msg):
+        out.append({"code": code, "fy": fy, "message": msg})
+
+    for fy in sorted({y for d in by.values() for y in d}):
+        v = lambda k: by.get(k, {}).get(fy, {}).get("val")
+        a, l, e = v("assets"), v("liabilities"), v("equity")
+        if a and l is not None and e is not None and abs(a - (l + e)) / abs(a) > C.IDENTITY_TOLERANCE:
+            add("BALANCE_IDENTITY", fy, f"FY{fy}: total assets differ from liabilities plus equity by {abs(a - (l + e)) / abs(a):.1%} (minority interest or redeemable equity can explain this).")
+        rev, cost, gp = v("revenue"), v("costOfRevenue"), v("grossProfit")
+        if rev and cost is not None and gp is not None and abs((rev - cost) - gp) / abs(rev) > C.GROSS_PROFIT_TOLERANCE:
+            add("GROSS_PROFIT_MISMATCH", fy, f"FY{fy}: reported gross profit differs from revenue minus cost of revenue by {abs((rev - cost) - gp) / abs(rev):.1%} of revenue.")
+        if rev is not None and rev <= 0:
+            add("NONPOSITIVE_REVENUE", fy, f"FY{fy}: revenue is zero or negative.")
+        prev = v("revenue") and by["revenue"].get(fy - 1)
+        if prev and prev["val"] > 0 and rev and abs(rev / prev["val"] - 1) > C.JUMP_LIMIT:
+            add("LARGE_REVENUE_CHANGE", fy, f"FY{fy}: revenue changed by {rev / prev['val'] - 1:+.0%}; check for an acquisition, divestiture or restatement.")
+        for k, p in by.items():
+            pt = p.get(fy)
+            if pt and pt.get("filed") and pt["filed"] < pt["end"]:
+                add("FILED_BEFORE_PERIOD_END", fy, f"FY{fy} {k}: filing date {pt['filed']} is before the period end {pt['end']}.")
+    return out
+
+
+def coverage(metrics: dict) -> dict:
+    """What was found, which tags supplied it, and what is missing: the honest record of non-standard filers."""
+    wanted = list(C.METRICS) + ["debt"]
+    return {"found": {k: {"years": len(m["points"]), "tags": sorted({p["tag"] for p in m["points"]})} for k, m in metrics.items()},
+            "missing": [k for k in wanted if k not in metrics]}
+
+
 def reduce_company(company: dict, ticker: str, generated: str = None, synthetic: bool = False, name: str = None) -> dict:
     """The compact file the site reads. `company` is the parsed companyfacts JSON."""
     metrics = {}
@@ -116,4 +151,5 @@ def reduce_company(company: dict, ticker: str, generated: str = None, synthetic:
         "source": "SEC EDGAR XBRL company facts (us-gaap, annual reports)", "currency": "USD",
         "generated": generated or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "latestFiled": max(filed) if filed else None, "latestPeriodEnd": max(ends) if ends else None, "metrics": metrics,
+        "coverage": coverage(metrics), "checks": quality_checks(metrics),
     }

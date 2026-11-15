@@ -7,7 +7,7 @@
   const PERSONAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !!document.querySelector('meta[name="creditscope-personal"]');
   const BENCH = 'SPY', MAX_FD = 4;
   const state = { syms: [], period: '1Y', fd: [] };
-  let priceIndex = [], fdIndex = [], priceRoot = 'explorer/sample/', personal = false, fdRoot = 'explorer/sec-sample/', fdSynth = true;
+  let priceMeta = {}, priceIndex = [], fdIndex = [], priceRoot = 'explorer/sample/', personal = false, fdRoot = 'explorer/sec-sample/', fdSynth = true;
   const cache = new Map(), fdCache = new Map(), charts = {};
   const PRESET = ['AAPL', 'MSFT', 'TLT', 'XOM'];
   const COLORS = ['--accent', '--stock', '--bond', '--up', '--down', '--flat'];
@@ -58,12 +58,12 @@
     $('periods').innerHTML = Finance.PERIODS.map(k => '<button type="button" data-p="' + k + '" aria-pressed="' + (k === state.period) + '">' + k + '</button>').join('');
     const out = $('cmpOut'), notes = $('notes'); notes.innerHTML = '';
     if (state.syms.length < 2) { out.innerHTML = '<div class="ex-empty"><h2>Choose two or more securities</h2><p>Search above, or use “Try an example”.</p></div>'; Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; }); return; }
-    out.innerHTML = '<p class="muted">Loading…</p>';
+    out.innerHTML = CS.loadingHtml('Loading prices…');
     let list, bench = null;
     try {
       list = await Promise.all(state.syms.map(loadSeries));
       bench = state.syms.indexOf(BENCH) >= 0 ? null : await loadSeries(BENCH).catch(() => null);
-    } catch (e) { out.innerHTML = '<div class="banner error"><span><b>Could not load a security.</b> ' + E(e.message) + '</span></div>'; return; }
+    } catch (e) { out.innerHTML = CS.errorHtml('Could not load a security.', e.message, true); out.querySelector('[data-retry]').addEventListener('click', renderPrices); return; }
     const r = CompareCalc.compare(list, state.period, bench || list.find(s => s.symbol === BENCH) || null);
     if (r.errors.length) { out.innerHTML = '<div class="banner warn"><span>' + E(r.errors[0].message) + '</span></div>'; return; }
     notes.innerHTML = r.warnings.map(w => '<div class="banner warn"><span>' + E(w.message) + '</span></div>').join('');
@@ -95,7 +95,7 @@
     const out = $('fdOut');
     if (state.fd.length < 2) { out.innerHTML = '<div class="ex-empty"><h2>Choose two or more companies</h2><p>Search above to compare revenue growth, margins, returns and leverage.</p></div>'; return; }
     let cs;
-    try { cs = await Promise.all(state.fd.map(loadCompany)); } catch (e) { out.innerHTML = '<div class="banner error"><span><b>Could not load a company.</b> ' + E(e.message) + '</span></div>'; return; }
+    try { cs = await Promise.all(state.fd.map(loadCompany)); } catch (e) { out.innerHTML = CS.errorHtml('Could not load a company.', e.message, true); out.querySelector('[data-retry]').addEventListener('click', renderFund); return; }
     const A = cs.map(c => FundCalc.analyze(c));
     const rows = [['Latest fiscal year', (a, c) => (a.latestFiscalYear == null ? '—' : 'FY' + a.latestFiscalYear + ' (ended ' + CS.date(c.latestPeriodEnd, true) + ')')],
       ['Revenue growth', (a, c, r) => pct(r.revenueGrowth)], ['Revenue CAGR, 3 years', a => pct(a.cagr[3])], ['Gross margin', (a, c, r) => plain(r.grossMargin)], ['Operating margin', (a, c, r) => plain(r.operatingMargin)],
@@ -119,16 +119,16 @@
     parseHash();
     try {
       if (PERSONAL) {
-        try { const d = await getJSON('private-data/index.json'); priceIndex = d.entries; personal = true; } catch (e) { personal = false; }
+        try { const d = await getJSON('private-data/index.json'); priceIndex = d.entries; priceMeta = d.meta || {}; personal = true; } catch (e) { personal = false; }
       }
-      if (!personal) { const d = await getJSON(priceRoot + 'index.json'); priceIndex = d.entries; }
+      if (!personal) { const d = await getJSON(priceRoot + 'index.json'); priceIndex = d.entries; priceMeta = d.meta || {}; }
       try { const d = await getJSON('explorer/sec/index.json'); if (d.entries.length) { fdIndex = d.entries; fdRoot = 'explorer/sec/'; fdSynth = !!d.meta.synthetic; } } catch (e) { /* fall through to the sample */ }
       if (!fdIndex.length) { const d = await getJSON('explorer/sec-sample/index.json'); fdIndex = d.entries; fdRoot = 'explorer/sec-sample/'; fdSynth = true; }
     } catch (e) { CS.banner('dataBanner', 'error', '<span><b>Could not load the data lists.</b> ' + E(e.message) + '</span>'); CS.doneLoading(); return; }
     if (personal) { $('privateBanner').hidden = false; $('privateBanner').firstElementChild.innerHTML = '<b>Private: real prices, local only.</b> Do not screenshot or screen-share this page. Prices are from your own data account; <b>volume is not used</b> here.'; }
     else $('synthBanner').hidden = false;
     $('fdSynth').hidden = !fdSynth;
-    $('pxCap').textContent = (personal ? 'Real prices from your private data. ' : 'Simulated prices. ') + 'Search ' + CS.int(priceIndex.length) + ' securities.';
+    $('pxCap').textContent = (personal ? 'Real prices from your private data. ' : 'Simulated prices. ') + 'Search ' + CS.int(priceIndex.length) + ' securities' + (priceMeta.asOf ? ' · prices through ' + CS.date(priceMeta.asOf) : '') + '.';
     $('fdCap').textContent = fdSynth ? 'Fictional companies for demonstration.' : 'Reported annual figures from SEC filings.';
     Picker.attach({ input: $('q'), list: $('results'), entries: priceIndex, noneText: 'No match in this data set.', onChoose: e => { if (state.syms.indexOf(e.s) < 0 && state.syms.length < CompareCalc.MAX_SECURITIES) { state.syms.push(e.s); syncHash(); renderPrices(); } } });
     Picker.attach({ input: $('fq'), list: $('fresults'), entries: fdIndex, noneText: 'No company with that name in this data set.', scope: '#fq', onChoose: e => { if (state.fd.indexOf(e.s) < 0 && state.fd.length < MAX_FD) { state.fd.push(e.s); syncHash(); renderFund(); } } });
