@@ -107,3 +107,15 @@ date,item_id,item,source,asset_class,category,price,volume,net_change,pct_change
 2026-11-22,SPY,State Street SPDR S&P 500 ETF Trust,nasdaq-SPY,Stock,US large cap,690.43,151413318,-25.44,-3.55,2026-11-20,Closed
 2026-11-22,TLT,iShares 20+ Year Treasury Bond ETF,nasdaq-TLT,Bond,Long Treasury,81.45,66140020,1.10,1.37,2026-11-20,Closed
 2026-11-22,XLF,State Street Financial Select Sector SPDR ETF,nasdaq-XLF,Stock,Financials,54.62,81850242,-0.96,-1.73,2026-11-20,Closed
+2026-11-23,AGG,iShares Core U.S. Aggregate Bond ETF,nasdaq-AGG,Bond,Broad market,96.15,12437530,0.59,0.62,2026-11-20,Closed
+2026-11-23,EEM,iShares MSCI Emerging Index Fund,nasdaq-EEM,Stock,Emerging markets,53.86,63080775,-2.89,-5.09,2026-11-20,Closed
+2026-11-23,EFA,iShares MSCI EAFE ETF,nasdaq-EFA,Stock,Developed international,96.16,30645822,-2.62,-2.65,2026-11-20,Closed
+2026-11-23,HYG,iShares iBoxx $ High Yield Corporate Bond ETF,nasdaq-HYG,Bond,High yield corporate,76.43,61814586,-0.10,-0.13,2026-11-20,Closed
+2026-11-23,IEF,iShares 7-10 Year Treasury Bond ETF,nasdaq-IEF,Bond,Intermediate Treasury,91.65,13193732,0.83,0.91,2026-11-20,Closed
+2026-11-23,IWM,iShares Russell 2000 Index Fund,nasdaq-IWM,Stock,US small cap,256.68,57460818,-7.54,-2.85,2026-11-20,Closed
+2026-11-23,LQD,iShares iBoxx $ Investment Grade Corporate Bond ETF,nasdaq-LQD,Bond,Investment grade corporate,103.70,35324216,0.62,0.60,2026-11-20,Closed
+2026-11-23,QQQ,"Invesco QQQ Trust, Series 1",nasdaq-QQQ,Stock,US growth,608.45,134753507,-36.59,-5.67,2026-11-20,Closed
+2026-11-23,SHY,iShares 1-3 Year Treasury Bond ETF,nasdaq-SHY,Bond,Short Treasury,81.61,4672007,0.23,0.28,2026-11-20,Closed
+2026-11-23,SPY,State Street SPDR S&P 500 ETF Trust,nasdaq-SPY,Stock,US large cap,690.43,151413318,-25.44,-3.55,2026-11-20,Closed
+2026-11-23,TLT,iShares 20+ Year Treasury Bond ETF,nasdaq-TLT,Bond,Long Treasury,81.45,66140020,1.10,1.37,2026-11-20,Closed
+2026-11-23,XLF,State Street Financial Select Sector SPDR ETF,nasdaq-XLF,Stock,Financials,54.62,81850242,-0.96,-1.73,2026-11-20,Closed
